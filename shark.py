@@ -72,9 +72,9 @@ class MusicBot(commands.Cog):
                 title = info["title"]
                 thumbnail_id = info["id"]
 
-                if not self.get_queue(interaction.guild_id):
+                if not voice_client.is_playing():
                     status = "Now Playing 🎶"
-                elif voice_client.is_playing():
+                else:
                     status = "Added to Queue 📝"
 
                 guild_queue = self.get_queue(interaction.guild_id)
@@ -96,15 +96,15 @@ class MusicBot(commands.Cog):
 
         # Play if not already playing
         if not voice_client.is_playing():
-            await self.play_next(interaction)
+            await self.play_next(interaction, send_message=False)
 
-    async def play_next(self, interaction: discord.Interaction):
+    async def play_next(self, interaction: discord.Interaction, send_message: bool = True):
         if not interaction.guild:
             return
 
         guild_queue = self.get_queue(interaction.guild_id)
         if not guild_queue:
-            await interaction.channel.send("Queue is empty!")
+            await interaction.channel.send("Queue is empty! 🕳️")
             return
 
         voice_client = interaction.guild.voice_client
@@ -120,12 +120,12 @@ class MusicBot(commands.Cog):
                 if error:
                     print(f"Error in playback: {error}")
                 asyncio.run_coroutine_threadsafe(
-                    self.play_next(interaction), self.client.loop
+                    self.play_next(interaction, send_message=True), self.client.loop
                 )
 
             voice_client.play(source, after=after_playing)
 
-            if len(self.get_queue(interaction.guild_id)) > 1:
+            if send_message:
                 embed = discord.Embed(
                     title="Now Playing 🎶",
                     description=f"**{title}**",
