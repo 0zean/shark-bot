@@ -74,7 +74,7 @@ class MusicBot(commands.Cog):
 
                 if not self.get_queue(interaction.guild_id):
                     status = "Now Playing 🎶"
-                else:
+                elif voice_client.is_playing():
                     status = "Added to Queue 📝"
 
                 guild_queue = self.get_queue(interaction.guild_id)
@@ -83,7 +83,7 @@ class MusicBot(commands.Cog):
                 embed = discord.Embed(
                     title=status,
                     description=f"**{title}**",
-                    color=interaction.message.author.color,
+                    color=interaction.user.color,
                 )
                 embed.set_thumbnail(
                     url=f"https://img.youtube.com/vi/{thumbnail_id}/default.jpg"
@@ -127,9 +127,9 @@ class MusicBot(commands.Cog):
 
             if len(self.get_queue(interaction.guild_id)) > 1:
                 embed = discord.Embed(
-                    title="Now Playing EPIC 🎶",
+                    title="Now Playing 🎶",
                     description=f"**{title}**",
-                    color=interaction.message.author.color,
+                    color=interaction.user.color,
                 )
                 embed.set_thumbnail(
                     url=f"https://img.youtube.com/vi/{thumbnail_id}/default.jpg"
