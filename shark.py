@@ -116,6 +116,25 @@ class MusicBot(commands.Cog):
         else:
             await ctx.send("I'm not in a voice channel!")
 
+    @commands.command()
+    async def clean(self, ctx, limit: int = 100):
+        """Removes the bot's messages from the channel"""
+        def is_bot(message):
+            # Check if the message is from the bot or is a command for the bot
+            return message.author == self.client.user or message.content.startswith(client.command_prefix)
+        
+        try:
+            # Delete messages
+            deleted = await ctx.channel.purge(limit=limit, check=is_bot)
+            # Send confirmation message that will delete itself after 5 seconds
+            confirmation = await ctx.send(f"Deleted {len(deleted)} messages!")
+            await asyncio.sleep(5)
+            await confirmation.delete()
+        except discord.Forbidden:
+            await ctx.send("I don't have permission to delete messages!")
+        except discord.HTTPException as e:
+            await ctx.send(f"An error occurred while deleting messages: {str(e)}")
+
 
 async def main():
     async with client:
