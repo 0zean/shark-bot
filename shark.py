@@ -1,11 +1,12 @@
 import asyncio
 import os
+from datetime import datetime
 from typing import Optional
 
 import discord
 import yt_dlp
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 # Setup intents
@@ -27,6 +28,39 @@ class MusicBot(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
         self.queue = {}  # Dictionary to store queues for different guilds
+        self.last_activity = {}  # Dictionary to store last activity time for each guild
+        self.last_channel = {}
+        self.check_inactivity.start()
+
+    def cog_unload(self):
+        self.check_inactivity.cancel()
+
+    @tasks.loop(seconds=30)  # Check every 30 seconds
+    async def check_inactivity(self):
+        current_time = datetime.now()
+        for guild in self.client.guilds:
+            voice_client = guild.voice_client
+            if voice_client is None:
+                continue
+
+            # Check for inactivity
+            last_active = self.last_activity.get(guild.id)
+            if last_active:
+                inactive_time = (current_time - last_active).total_seconds()
+                if inactive_time > 600:
+                    await voice_client.disconnect()
+                    if guild.id in self.queue:
+                        self.queue[guild.id].clear()
+                    self.last_activity.pop(guild.id, None)
+                    print(f"Disconnected from {guild.name} due to inactivity")
+
+    @check_inactivity.before_loop
+    async def before_check_inactivity(self):
+        await self.client.wait_until_ready()
+
+    # Update activity timestamp for various actions
+    def update_activity(self, guild_id: int):
+        self.last_activity[guild_id] = datetime.now()
 
     def get_queue(self, guild_id: int):
         """Get the queue for a specific guild"""
@@ -43,6 +77,10 @@ class MusicBot(commands.Cog):
                 "This command can only be used in a server!"
             )
             return
+
+        # Update activity timestamp when play command is used
+        self.update_activity(interaction.guild_id)
+        self.last_channel[interaction.guild_id] = interaction.channel
 
         # Check if user is in a voice channel
         if not interaction.user.voice:
@@ -98,9 +136,13 @@ class MusicBot(commands.Cog):
         if not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
 
-    async def play_next(self, interaction: discord.Interaction, send_message: bool = True):
+    async def play_next(
+        self, interaction: discord.Interaction, send_message: bool = True
+    ):
         if not interaction.guild:
             return
+
+        self.update_activity(interaction.guild_id)
 
         guild_queue = self.get_queue(interaction.guild_id)
         if not guild_queue:
@@ -112,6 +154,7 @@ class MusicBot(commands.Cog):
             return
 
         url, title, thumbnail_id = guild_queue.pop(0)
+        self.update_activity(interaction.guild_id)  # Update activity timestamp
 
         try:
             source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
@@ -149,6 +192,10 @@ class MusicBot(commands.Cog):
             )
             return
 
+        # Update activity timestamp when skip command is used
+        self.update_activity(interaction.guild_id)
+        self.last_channel[interaction.guild_id] = interaction.channel
+
         voice_client = interaction.guild.voice_client
         if voice_client and voice_client.is_playing():
             voice_client.stop()
@@ -165,6 +212,8 @@ class MusicBot(commands.Cog):
                 "This command can only be used in a server!"
             )
             return
+
+        self.last_channel[interaction.guild_id] = interaction.channel
 
         voice_client = interaction.guild.voice_client
         if voice_client:
@@ -189,10 +238,12 @@ class MusicBot(commands.Cog):
             )
             return
 
+        self.last_channel[interaction.guild_id] = interaction.channel
+
         try:
             # Delete messages
             deleted = await interaction.channel.purge(
-                limit=limit, check=lambda m: m.author == self.client.user
+                limit=limit+1, check=lambda m: m.author == self.client.user
             )
 
             # Send confirmation message that will delete itself after 5 seconds
@@ -209,6 +260,47 @@ class MusicBot(commands.Cog):
             await interaction.followup.send(
                 f"An error occurred while deleting messages: {str(e)}"
             )
+
+    # Event listener for voice state updates
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState,
+    ):
+        if member.guild.voice_client is None:
+            return
+
+        # Update activity when someone joins or moves in the voice channel
+        if after.channel and after.channel.id == member.guild.voice_client.channel.id:
+            self.update_activity(member.guild.id)
+
+        # Check if the bot is alone in the voice channel
+        voice_client = member.guild.voice_client
+        if voice_client and voice_client.is_connected() and len(voice_client.channel.members) <= 1:
+            await asyncio.sleep(5)  # Wait 5 seconds before checking again
+            
+            # Check again after delay to make sure bot is still alone
+            if voice_client.is_connected() and len(voice_client.channel.members) <= 1:
+                print(f"Disconnected from {member.guild.name} - bot was left alone")
+                
+                # Try to send message to the last channel where a command was used
+                try:
+                    # Get the last interaction's channel
+                    last_text_channel = self.last_channel.get(member.guild.id)
+                    
+                    if last_text_channel:
+                        await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
+                except discord.HTTPException:
+                    # If sending message fails, just continue with disconnection
+                    pass
+                
+                # Perform cleanup
+                await voice_client.disconnect()
+                if member.guild.id in self.queue:
+                    self.queue[member.guild.id].clear()
+                self.last_activity.pop(member.guild.id, None)
 
 
 class MusicBotClient(commands.Bot):
