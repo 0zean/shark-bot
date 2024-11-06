@@ -103,12 +103,25 @@ class MusicBot(commands.Cog):
         # Search and queue the song
         try:
             with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                info = ydl.extract_info(f"ytsearch:{search}", download=False)
-                if "entries" in info:
-                    info = info["entries"][0]
+                # Check if the input is a SoundCloud link
+                is_soundcloud = "soundcloud.com" in search
+
+                if is_soundcloud:
+                    # Extract SoundCloud info
+                    info = ydl.extract_info(search, download=False)
+                else:
+                    # Use YouTube search
+                    info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                    if "entries" in info:
+                        info = info["entries"][0]
+
                 url = info["url"]
                 title = info["title"]
-                thumbnail_id = info["id"]
+                thumbnail_url = (
+                    info.get("thumbnail")
+                    if is_soundcloud
+                    else f"https://img.youtube.com/vi/{info['id']}/default.jpg"
+                )
 
                 if not voice_client.is_playing():
                     status = "Now Playing 🎶"
@@ -116,16 +129,14 @@ class MusicBot(commands.Cog):
                     status = "Added to Queue 📝"
 
                 guild_queue = self.get_queue(interaction.guild_id)
-                guild_queue.append((url, title, thumbnail_id))
+                guild_queue.append((url, title, thumbnail_url))
 
                 embed = discord.Embed(
                     title=status,
                     description=f"**{title}**",
                     color=interaction.user.color,
                 )
-                embed.set_thumbnail(
-                    url=f"https://img.youtube.com/vi/{thumbnail_id}/default.jpg"
-                )
+                embed.set_thumbnail(url=thumbnail_url)
 
                 await interaction.followup.send(embed=embed)
         except Exception as e:
@@ -168,6 +179,7 @@ class MusicBot(commands.Cog):
 
             voice_client.play(source, after=after_playing)
 
+            # TODO: Handle soundcloud song that is next in queue
             if send_message:
                 embed = discord.Embed(
                     title="Now Playing 🎶",
@@ -243,7 +255,7 @@ class MusicBot(commands.Cog):
         try:
             # Delete messages
             deleted = await interaction.channel.purge(
-                limit=limit+1, check=lambda m: m.author == self.client.user
+                limit=limit + 1, check=lambda m: m.author == self.client.user
             )
 
             # Send confirmation message that will delete itself after 5 seconds
@@ -278,24 +290,30 @@ class MusicBot(commands.Cog):
 
         # Check if the bot is alone in the voice channel
         voice_client = member.guild.voice_client
-        if voice_client and voice_client.is_connected() and len(voice_client.channel.members) <= 1:
+        if (
+            voice_client
+            and voice_client.is_connected()
+            and len(voice_client.channel.members) <= 1
+        ):
             await asyncio.sleep(5)  # Wait 5 seconds before checking again
-            
+
             # Check again after delay to make sure bot is still alone
             if voice_client.is_connected() and len(voice_client.channel.members) <= 1:
                 print(f"Disconnected from {member.guild.name} - bot was left alone")
-                
+
                 # Try to send message to the last channel where a command was used
                 try:
                     # Get the last interaction's channel
                     last_text_channel = self.last_channel.get(member.guild.id)
-                    
+
                     if last_text_channel:
-                        await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
+                        await last_text_channel.send(
+                            "Disconnecting because I was left alone in the voice channel! 👋"
+                        )
                 except discord.HTTPException:
                     # If sending message fails, just continue with disconnection
                     pass
-                
+
                 # Perform cleanup
                 await voice_client.disconnect()
                 if member.guild.id in self.queue:
