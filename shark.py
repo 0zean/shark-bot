@@ -164,7 +164,7 @@ class MusicBot(commands.Cog):
         if not voice_client:
             return
 
-        url, title, thumbnail_id = guild_queue.pop(0)
+        url, title, thumbnail_url = guild_queue.pop(0)
         self.update_activity(interaction.guild_id)  # Update activity timestamp
 
         try:
@@ -187,7 +187,7 @@ class MusicBot(commands.Cog):
                     color=interaction.user.color,
                 )
                 embed.set_thumbnail(
-                    url=f"https://img.youtube.com/vi/{thumbnail_id}/default.jpg"
+                    url=thumbnail_url
                 )
 
                 await interaction.channel.send(embed=embed)
