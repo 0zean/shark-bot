@@ -179,16 +179,13 @@ class MusicBot(commands.Cog):
 
             voice_client.play(source, after=after_playing)
 
-            # TODO: Handle soundcloud song that is next in queue
             if send_message:
                 embed = discord.Embed(
                     title="Now Playing 🎶",
                     description=f"**{title}**",
                     color=interaction.user.color,
                 )
-                embed.set_thumbnail(
-                    url=thumbnail_url
-                )
+                embed.set_thumbnail(url=thumbnail_url)
 
                 await interaction.channel.send(embed=embed)
 
