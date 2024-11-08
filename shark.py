@@ -256,7 +256,7 @@ class MusicBot(commands.Cog):
             )
 
             # Send confirmation message that will delete itself after 5 seconds
-            confirm = await interaction.followup.send(
+            confirm = await interaction.channel.send(
                 f"Deleted {len(deleted)} messages! 🧹"
             )
             await asyncio.sleep(5)
