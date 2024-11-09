@@ -2,6 +2,7 @@ import asyncio
 import os
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 
 import discord
 import yt_dlp
@@ -15,13 +16,36 @@ intents.message_content = True
 intents.voice_states = True
 
 # Setup YDL and FFMPEG options
-FFMPEG_OPTIONS = {"options": "-vn"}
+# FFMPEG_OPTIONS = {"options": "-vn"}
+
+FFMPEG_OPTIONS = {
+    "before_options": "-analyzeduration 0 -loglevel 0",
+    "options": "-vn -b:a 192k -bufsize 1024k -fflags nobuffer+fastseek",
+}
+
 YDL_OPTIONS = {
     "format": "bestaudio",
     "noplaylist": True,
     "username": "oauth",
     "password": "",
 }
+
+AUDIO_TYPES = (
+    ".mp3",
+    ".m4a",
+    "wav",
+    "flac",
+    ".aac",
+    ".wma",
+    ".opus",
+)
+
+
+def get_file_extension(url):
+    parsed_url = urlparse(url)
+    file_name = os.path.basename(parsed_url.path)
+    base_name, file_extension = os.path.splitext(file_name)
+    return base_name, file_extension.lower()
 
 
 class MusicBot(commands.Cog):
@@ -68,8 +92,16 @@ class MusicBot(commands.Cog):
             self.queue[guild_id] = []
         return self.queue[guild_id]
 
-    @app_commands.command(name="play", description="Play a song from YouTube")
-    async def play(self, interaction: discord.Interaction, search: str):
+    @app_commands.command(
+        name="play",
+        description="Play a song from YouTube, SoundCloud, or upload an audio file",
+    )
+    async def play(
+        self,
+        interaction: discord.Interaction,
+        search: Optional[str] = None,
+        file: Optional[discord.Attachment] = None,
+    ):
         await interaction.response.defer()
 
         if not interaction.guild:
@@ -100,48 +132,80 @@ class MusicBot(commands.Cog):
             )
             return
 
-        # Search and queue the song
-        try:
-            with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                # Check if the input is a SoundCloud link
-                is_soundcloud = "soundcloud.com" in search
-
-                if is_soundcloud:
-                    # Extract SoundCloud info
-                    info = ydl.extract_info(search, download=False)
-                else:
-                    # Use YouTube search
-                    info = ydl.extract_info(f"ytsearch:{search}", download=False)
-                    if "entries" in info:
-                        info = info["entries"][0]
-
-                url = info["url"]
-                title = info["title"]
-                thumbnail_url = (
-                    info.get("thumbnail")
-                    if is_soundcloud
-                    else f"https://img.youtube.com/vi/{info['id']}/default.jpg"
+        if file:
+            if not file.filename.lower().endswith(AUDIO_TYPES):
+                await interaction.followup.send(
+                    f"Invalid file type! Supported formats: `{', '.join(AUDIO_TYPES)}`"
                 )
-
-                if not voice_client.is_playing():
-                    status = "Now Playing 🎶"
-                else:
-                    status = "Added to Queue 📝"
-
-                guild_queue = self.get_queue(interaction.guild_id)
-                guild_queue.append((url, title, thumbnail_url))
-
-                embed = discord.Embed(
-                    title=status,
-                    description=f"**{title}**",
-                    color=interaction.user.color,
+                return
+            if file.size > 8388608:
+                await interaction.followup.send(
+                    f"File greater than 8MB!: {(file.size / 1000000):.2f}"
                 )
-                embed.set_thumbnail(url=thumbnail_url)
+                return
 
-                await interaction.followup.send(embed=embed)
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {str(e)}")
-            return
+            url = file.url
+            title = file.filename
+            thumbnail_url = None
+
+        else:
+            # Search and queue the song
+            try:
+                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                    # Check if the input is a SoundCloud link
+                    is_soundcloud = "soundcloud.com" in search
+                    is_discord_url = "cdn.discordapp.com/attachments/" in search
+
+                    if is_discord_url:
+                        track_name, cdn_ext = get_file_extension(search)
+                        if cdn_ext in AUDIO_TYPES:
+                            info = {
+                                "url": search,
+                                "title": track_name,
+                                "thumbnail": None,
+                            }
+
+                    elif is_soundcloud:
+                        # Extract SoundCloud info
+                        info = ydl.extract_info(search, download=False)
+                    else:
+                        # Use YouTube search
+                        info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                        if "entries" in info:
+                            info = info["entries"][0]
+
+                    url = info["url"]
+                    title = info["title"]
+                    thumbnail_url = (
+                        None
+                        if is_discord_url
+                        else (
+                            info.get("thumbnail")
+                            if is_soundcloud
+                            else f"https://img.youtube.com/vi/{info['id']}/default.jpg"
+                        )
+                    )
+
+            except Exception as e:
+                await interaction.followup.send(f"An error occurred: {str(e)}")
+                return
+
+        if not voice_client.is_playing():
+            status = "Now Playing 🎶"
+        else:
+            status = "Added to Queue 📝"
+
+        guild_queue = self.get_queue(interaction.guild_id)
+        guild_queue.append((url, title, thumbnail_url))
+
+        embed = discord.Embed(
+            title=status,
+            description=f"**{title}**",
+            color=interaction.user.color,
+        )
+        embed.set_thumbnail(url=thumbnail_url)
+
+        await interaction.followup.send(embed=embed)
 
         # Play if not already playing
         if not voice_client.is_playing():
