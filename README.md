@@ -1,4 +1,4 @@
-# Shark Music Bot
+# 🦈 Shark Music Bot
 
 Discord music bot built around Discord.py, YT-DLP, and FFMPEG.
 
