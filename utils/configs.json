@@ -1,0 +1,28 @@
+{
+    "ffmpeg": {
+        "local": {
+            "before_options": "-analyzeduration 0 -loglevel 0",
+            "options": "-vn -b:a 192k -bufsize 1024k -fflags nobuffer+fastseek"
+        },
+        "stream": {
+            "before_options": "",
+            "options": "-vn -b:a 128k -bufsize 512k"
+        }
+    },
+    "ydl": {
+        "format": "bestaudio",
+        "noplaylist": true,
+        "username": "oauth",
+        "password": ""
+    },
+    "audio_types": [
+        ".mp3",
+        ".mp4",
+        ".m4a",
+        "wav",
+        "flac",
+        ".aac",
+        ".wma",
+        ".opus"
+    ]
+}
