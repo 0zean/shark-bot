@@ -8,7 +8,7 @@ Discord music bot built around Discord.py, YT-DLP, and FFMPEG.
 - Soundcloud links
 - Discord CDN links & File uploads
 - Dynamic embeded messages
-- Auto disconnect after 10 mins of inactivity or empty voice channel
+- Auto disconnect after 10 mins of inactivity or if empty voice channel
 
 ## ⌨️ Commands
 - `/play` (search): Plays a YouTube, Soundcloud, or CDN link, OR searches for a YouTube video by title.
