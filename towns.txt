@@ -1,0 +1,183 @@
+Baldwin
+Atlantic Beach
+Bellerose Terrace
+Bellmore
+Cedarhurst
+East Meadow
+East Rockaway
+Elmont
+Franklin Square
+Freeport
+Garden City
+Hempstead
+Hewlett
+Inwood
+Island Park
+Lawrence
+Levittown
+Lynbrook
+Malverne
+Merrick
+North Lynbrook
+North Valley Stream
+North Woodmere
+Oceanside
+Point Lookout
+Rockville Centre
+Roosevelt
+Seaford
+South Hempstead
+Uniondale
+Valley Stream
+Wantagh
+West Hempstead
+Woodmere
+Albertson
+Carle Place
+Floral Park
+Great Neck
+Kings Point
+Manhasset
+Mineola
+New Hyde Park
+Old Westbury
+Port Washington
+Roslyn
+Roslyn Heights
+Sands Point
+Westbury
+North New Hyde Park
+Williston Park
+Oyster Bay
+Bethpage
+Bellerose Terrace
+Bayville
+Brookville
+East Norwich
+Farmingdale
+Glen Head
+Glenwood Landing
+Plainview
+Hicksville
+Jericho
+Locust Valley
+Massapequa
+Massapequa Park
+Mill Neck
+Old Bethpage
+Sea Cliff
+Syosset
+Greenvale
+Woodbury
+Babylon
+Copiague
+Amityville
+Deer Park
+Lindenhurst
+North Amityville
+North Babylon
+West Babylon
+Wyandanch
+Centereach
+Coram
+Dix Hills
+Bayshore
+Huntington
+Huntington Station
+Lloyd Harbor
+Cold Spring Harbor
+Centerport
+East Northport
+Melville
+Greenlawn
+Northport
+Elwood
+Commack
+Smithtown
+Hauppauge
+Kings Park
+Nesconset
+Saint James
+Bayport
+Islip
+Islip Terrance
+West Islip
+Islandia
+Bohemia
+Brentwood
+Brightwaters
+Central Islip
+East Islip
+Sayville
+West Sayville
+Great River
+Oakdale
+Ocean Beach
+Brookhaven
+Ridge
+Lake Grove
+Stony Brook
+Bellport
+Blue Point
+Calverton
+Center Moriches
+East Moriches
+Patchogue
+North Patchogue
+East Patchogue
+Eastport
+East Setauket
+Farmingville
+Holbrook
+Holtsville
+Manorville
+Mastic
+Mastic Beach
+Medford
+Middle Island
+Miller Place
+Moriches
+Mount Sinai
+Port Jefferson
+Port Jefferson Station
+Rocky Point
+Ronkonkoma
+Selden
+Shirley
+Shoreham
+Sound Beach
+Upton
+Wading River
+Yaphank
+Riverhead
+Aquebogue
+Jamesport
+South Jamesport
+Laurel
+Shelter Island
+Shelter Island Heights
+Southampton
+Bridgehampton
+Hampton Bays
+Quogue
+Remsenburg
+Sagaponack
+Speonk
+Water Mill
+Westhampton
+Westhampton Beach
+Montauk
+East Hampton
+Sag Harbor
+Amagansett
+Wainscott
+Cutchogue
+Southold
+East Marion
+New Suffolk
+Fishers Island
+East Quogue
+Greenport
+Mattituck
+Orient
+Peconic
