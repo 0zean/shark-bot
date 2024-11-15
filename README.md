@@ -16,3 +16,4 @@ Discord music bot built around Discord.py, YT-DLP, and FFMPEG.
 - `/skip`: Skips currently playing song and plays the next in queue OR stops currently playing song if nothing in queue.
 - `/leave`: Disconnects the bot from voice channel.
 - `/clean`: Purges the `limit` amount of bot-related messages in a text channel (Default limit value is 100).
+- `/name`: Changes nickname of user to a randomized one.
