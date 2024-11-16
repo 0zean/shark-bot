@@ -50,7 +50,7 @@ class NameChanger(commands.Cog):
             )
             return
 
-        self.last_channel[interaction.guild_id] = interaction.channel
+        # self.last_channel[interaction.guild_id] = interaction.channel
 
         try:
             # Delete messages
