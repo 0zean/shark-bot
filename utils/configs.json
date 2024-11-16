@@ -12,8 +12,7 @@
     "ydl": {
         "format": "bestaudio",
         "noplaylist": true,
-        "username": "oauth",
-        "password": ""
+        "cookiefile": "cookies.txt"
     },
     "audio_types": [
         ".mp3",
