@@ -116,9 +116,9 @@ class MusicBot(commands.Cog):
                     f"Invalid file type! Supported formats: `{', '.join(AUDIO_TYPES)}`"
                 )
                 return
-            if file.size > 8388608:
+            if file.size > 10485760:
                 await interaction.followup.send(
-                    f"File greater than 8MB!: {(file.size / 1000000):.2f}"
+                    f"File greater than 10MB!: {(file.size / 1000000):.2f}"
                 )
                 return
 
