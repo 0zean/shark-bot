@@ -1,6 +1,5 @@
 import asyncio
 from random import choice
-from typing import Optional
 
 import discord
 from discord import app_commands
@@ -16,7 +15,7 @@ intents.voice_states = True
 
 class NameChanger(commands.Cog):
     def __init__(self, client: commands.Bot):
-        self.client = client
+        self.client: commands.Bot = client
 
     @app_commands.command(
         name="name", description="Changes username to randomized one."
@@ -41,7 +40,7 @@ class NameChanger(commands.Cog):
     @app_commands.command(
         name="clean", description="Remove bot messages from the channel (default: 100)"
     )
-    async def clean(self, interaction: discord.Interaction, limit: Optional[int] = 100):
+    async def clean(self, interaction: discord.Interaction, limit: int | None = 100):
         await interaction.response.defer()
 
         if not interaction.guild:
@@ -60,7 +59,7 @@ class NameChanger(commands.Cog):
 
             # Send confirmation message that will delete itself after 5 seconds
             confirm = await interaction.channel.send(
-                f"Deleted `{len(deleted)}` messages! 🧹"
+                f"Deleted `{len(deleted) - 1}` messages! 🧹"
             )
             await asyncio.sleep(5)
             await confirm.delete()

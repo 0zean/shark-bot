@@ -1,6 +1,5 @@
 import asyncio
 from datetime import datetime
-from typing import Optional
 
 import discord
 import yt_dlp
@@ -77,8 +76,8 @@ class MusicBot(commands.Cog):
     async def play(
         self,
         interaction: discord.Interaction,
-        search: Optional[str] = None,
-        file: Optional[discord.Attachment] = None,
+        search: str | None = None,
+        file: discord.Attachment | None = None,
     ):
         await interaction.response.defer()
 
