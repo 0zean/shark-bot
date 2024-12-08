@@ -18,7 +18,7 @@ def load_config():
     }
 
 
-def get_file_extension(url):
+def get_file_extension(url: str) -> tuple[str, str]:
     parsed_url = urlparse(url)
     file_name = os.path.basename(parsed_url.path)
     base_name, file_extension = os.path.splitext(file_name)
