@@ -40,7 +40,7 @@ class NameChanger(commands.Cog):
     @app_commands.command(
         name="clean", description="Remove bot messages from the channel (default: 100)"
     )
-    async def clean(self, interaction: discord.Interaction, limit: int | None = 100):
+    async def clean(self, interaction: discord.Interaction, limit: int = 100):
         await interaction.response.defer()
 
         if not interaction.guild:
