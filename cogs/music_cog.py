@@ -1,10 +1,12 @@
 import asyncio
 from datetime import datetime
+from typing import override
 
 import discord
 import yt_dlp
 from discord import app_commands
 from discord.ext import commands, tasks
+
 from utils.helper import get_file_extension, load_config
 
 # Setup intents
@@ -33,6 +35,7 @@ class MusicBot(commands.Cog):
         self.last_channel = {}  # Dictionary to store last channel bot was used in
         self.check_inactivity.start()
 
+    @override
     def cog_unload(self):
         self.check_inactivity.cancel()
 
@@ -69,22 +72,14 @@ class MusicBot(commands.Cog):
             self.queue[guild_id] = []
         return self.queue[guild_id]
 
-    @app_commands.command(
-        name="play",
-        description="Play a song from YouTube, SoundCloud, or upload an audio file",
-    )
+    @app_commands.command(name="play", description="Play a song from YouTube, SoundCloud, or upload an audio file")
     async def play(
-        self,
-        interaction: discord.Interaction,
-        search: str | None = None,
-        file: discord.Attachment | None = None,
+        self, interaction: discord.Interaction, search: str | None = None, file: discord.Attachment | None = None
     ):
         await interaction.response.defer()
 
         if not interaction.guild:
-            await interaction.followup.send(
-                "This command can only be used in a server!"
-            )
+            await interaction.followup.send("This command can only be used in a server!")
             return
 
         # Update activity timestamp when play command is used
@@ -104,21 +99,15 @@ class MusicBot(commands.Cog):
             if not voice_client:
                 voice_client = await voice_channel.connect()
         except discord.errors.ClientException:
-            await interaction.followup.send(
-                "Error connecting to voice channel. Please try again."
-            )
+            await interaction.followup.send("Error connecting to voice channel. Please try again.")
             return
 
         if file:
             if not file.filename.lower().endswith(AUDIO_TYPES):
-                await interaction.followup.send(
-                    f"Invalid file type! Supported formats: `{', '.join(AUDIO_TYPES)}`"
-                )
+                await interaction.followup.send(f"Invalid file type! Supported formats: `{', '.join(AUDIO_TYPES)}`")
                 return
             if file.size > 10485760:
-                await interaction.followup.send(
-                    f"File greater than 10MB!: {(file.size / 1000000):.2f}"
-                )
+                await interaction.followup.send(f"File greater than 10MB!: {(file.size / 1000000):.2f}")
                 return
 
             url = file.url
@@ -188,9 +177,7 @@ class MusicBot(commands.Cog):
         if not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
 
-    async def play_next(
-        self, interaction: discord.Interaction, send_message: bool = True
-    ):
+    async def play_next(self, interaction: discord.Interaction, send_message: bool = True):
         if not interaction.guild:
             return
 
@@ -222,9 +209,7 @@ class MusicBot(commands.Cog):
             def after_playing(error):
                 if error:
                     print(f"Error in playback: {error}")
-                asyncio.run_coroutine_threadsafe(
-                    self.play_next(interaction, send_message=True), self.client.loop
-                )
+                asyncio.run_coroutine_threadsafe(self.play_next(interaction, send_message=True), self.client.loop)
 
             voice_client.play(source, after=after_playing)
 
@@ -245,9 +230,7 @@ class MusicBot(commands.Cog):
     @app_commands.command(name="skip", description="Skip the current song")
     async def skip(self, interaction: discord.Interaction):
         if not interaction.guild:
-            await interaction.response.send_message(
-                "This command can only be used in a server!"
-            )
+            await interaction.response.send_message("This command can only be used in a server!")
             return
 
         # Update activity timestamp when skip command is used
@@ -261,14 +244,10 @@ class MusicBot(commands.Cog):
         else:
             await interaction.response.send_message("Nothing is playing!")
 
-    @app_commands.command(
-        name="leave", description="Disconnect the bot from voice channel"
-    )
+    @app_commands.command(name="leave", description="Disconnect the bot from voice channel")
     async def leave(self, interaction: discord.Interaction):
         if not interaction.guild:
-            await interaction.response.send_message(
-                "This command can only be used in a server!"
-            )
+            await interaction.response.send_message("This command can only be used in a server!")
             return
 
         self.last_channel[interaction.guild_id] = interaction.channel
@@ -278,19 +257,14 @@ class MusicBot(commands.Cog):
             await voice_client.disconnect()
             if interaction.guild_id in self.queue:
                 self.queue[interaction.guild_id].clear()
-            await interaction.response.send_message(
-                "👋 Disconnected from voice channel!"
-            )
+            await interaction.response.send_message("👋 Disconnected from voice channel!")
         else:
             await interaction.response.send_message("I'm not in a voice channel!")
 
     # Event listener for voice state updates
     @commands.Cog.listener()
     async def on_voice_state_update(
-        self,
-        member: discord.Member,
-        before: discord.VoiceState,
-        after: discord.VoiceState,
+        self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
     ):
         if member.guild.voice_client is None:
             return
@@ -301,11 +275,7 @@ class MusicBot(commands.Cog):
 
         # Check if the bot is alone in the voice channel
         voice_client = member.guild.voice_client
-        if (
-            voice_client
-            and voice_client.is_connected()
-            and len(voice_client.channel.members) <= 1
-        ):
+        if voice_client and voice_client.is_connected() and len(voice_client.channel.members) <= 1:
             await asyncio.sleep(5)  # Wait 5 seconds before checking again
 
             # Check again after delay to make sure bot is still alone
@@ -318,9 +288,7 @@ class MusicBot(commands.Cog):
                     last_text_channel = self.last_channel.get(member.guild.id)
 
                     if last_text_channel:
-                        await last_text_channel.send(
-                            "Disconnecting because I was left alone in the voice channel! 👋"
-                        )
+                        await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
                 except discord.HTTPException:
                     # If sending message fails, just continue with disconnection
                     pass
