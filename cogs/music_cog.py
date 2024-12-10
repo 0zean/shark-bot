@@ -33,7 +33,7 @@ class MusicBot(commands.Cog):
         self.last_activity = {}  # Dictionary to store last activity time for each guild
         self.last_channel = {}  # Dictionary to store last channel bot was used in
         self.check_inactivity.start()
-        self.queue_length: int = 0
+        self.song_length: int = 0
 
     def cog_unload(self):
         self.check_inactivity.cancel()
@@ -50,7 +50,7 @@ class MusicBot(commands.Cog):
             last_active = self.last_activity.get(guild.id)
             if last_active:
                 inactive_time = (current_time - last_active).total_seconds()
-                if inactive_time > 600 + self.queue_length:
+                if inactive_time > 600 + self.song_length:
                     await voice_client.disconnect()
                     if guild.id in self.queue:
                         self.queue[guild.id].clear()
@@ -112,7 +112,7 @@ class MusicBot(commands.Cog):
             url = file.url
             title = file.filename
             thumbnail_url = None
-            duration = int(file.duration)
+            duration = await get_audio_duration(file.url)
 
         else:
             # Search and queue the song
@@ -174,12 +174,12 @@ class MusicBot(commands.Cog):
         )
         embed.set_thumbnail(url=thumbnail_url)
 
-        if file or is_discord_url:
-            thumbnail_file = discord.File("assets/music_file.svg", filename="music_file.svg")
-            embed.set_image(url="attachment://music_file.svg")
-            await interaction.followup.send(file=thumbnail_file, embed=embed)
-        else:
-            await interaction.followup.send(embed=embed)
+        # if file or is_discord_url:
+        #     thumbnail_file = discord.File("/root/dev/discord-bot/assets/music_file.png", filename="music_file.png")
+        #     embed.set_image(url="attachment://music_file.png")
+        #     await interaction.followup.send(file=thumbnail_file, embed=embed)
+        # else:
+        await interaction.followup.send(embed=embed)
 
         # Play if not already playing
         if not voice_client.is_playing():
@@ -187,7 +187,7 @@ class MusicBot(commands.Cog):
             
         # Add song time to timeout length
         if duration is not None:
-            self.queue_length += duration
+            self.song_length += duration
 
     async def play_next(self, interaction: discord.Interaction, send_message: bool = True):
         if not interaction.guild:

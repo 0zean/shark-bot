@@ -30,7 +30,9 @@ def get_file_extension(url: str) -> tuple[str, str]:
     return base_name, file_extension.lower()
 
 
-def convert(seconds: int) -> str:
+def convert(seconds: int | None) -> str:
+    if seconds is None:
+        return "Upload"
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     if hour > 0:
