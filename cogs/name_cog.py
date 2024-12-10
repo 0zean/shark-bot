@@ -49,7 +49,7 @@ class NameChanger(commands.Cog):
 
             # Send confirmation message that will delete itself after 5 seconds
             confirm = await interaction.channel.send(f"Deleted `{len(deleted) - 1}` messages! 🧹")
-            await asyncio.sleep(5)
+            await asyncio.sleep(3)
             await confirm.delete()
         except discord.Forbidden:
             await interaction.followup.send("I don't have permission to delete messages!")
