@@ -14,6 +14,9 @@ yt-dlp = "^2024.12.06"
 pydantic = "^2.9.2"
 python-dotenv = "^1.0.1"
 basedpyright = "^1.22.1"
+soundfile = "^0.12.1"
+aiohttp = "^3.11.10"
+asyncio = "^3.4.3"
 
 
 [tool.poetry.group.test.dependencies]
@@ -26,6 +29,124 @@ hypothesis = "^6.116.0"
 [tool.poetry.group.lint.dependencies]
 isort = "^5.13.2"
 ruff = "^0.8.2"
+
+[tool.ruff]
+preview = true
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+select = [
+  "E",
+  "F",
+  "I",
+  "A",
+  "ASYNC",
+  "C4",
+  # Flake8 bandit
+  "S102",
+  "S110",
+  "S112",
+  "S301",
+  "S307",
+  "S324",
+  "S501",
+  "S506",
+  # Flake8 bugbear
+  "B006",
+  "B007",
+  "B008",
+  "B904",
+  "B905",
+  # pyupgrade
+  "UP008",
+  "UP010",
+  # pylint refactor
+  "PLR5501",
+  # pylint error
+  "PLE1142",
+  # pylint convention
+  "PLC1901",
+  # mccabe
+  "C901",
+  # Flake8 simplify
+  "SIM108",
+  "SIM110",
+  "SIM115",
+  # Ruff-specific
+  "RUF006",
+  "RUF008",
+  "RUF009",
+  # Docstrings
+  "D300",
+  "D402",
+  "D417",
+  "D418",
+  "D419",
+]
+ignore = ["A003"]
+
+fixable = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "I",
+  "N",
+  "Q",
+  "S",
+  "T",
+  "W",
+  "ANN",
+  "ARG",
+  "BLE",
+  "COM",
+  "DJ",
+  "DTZ",
+  "EM",
+  "ERA",
+  "EXE",
+  "FBT",
+  "ICN",
+  "INP",
+  "ISC",
+  "NPY",
+  "PD",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "RET",
+  "RSE",
+  "RUF",
+  "SIM",
+  "SLF",
+  "TCH",
+  "TID",
+  "TRY",
+  "UP",
+  "YTT",
+]
+unfixable = []
+
+exclude = []
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"stubs/**/*" = ["D"]
+"tests/**/*.py" = ["D"]
 
 [build-system]
 requires = ["poetry-core"]
