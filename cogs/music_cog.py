@@ -1,13 +1,12 @@
 import asyncio
 from datetime import datetime
-from typing import override
 
 import discord
 import yt_dlp
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from utils.helper import get_file_extension, load_config
+from utils.helper import convert, get_audio_duration, get_file_extension, load_config
 
 # Setup intents
 intents = discord.Intents.default()
@@ -34,8 +33,8 @@ class MusicBot(commands.Cog):
         self.last_activity = {}  # Dictionary to store last activity time for each guild
         self.last_channel = {}  # Dictionary to store last channel bot was used in
         self.check_inactivity.start()
+        self.queue_length: int = 0
 
-    @override
     def cog_unload(self):
         self.check_inactivity.cancel()
 
@@ -51,7 +50,7 @@ class MusicBot(commands.Cog):
             last_active = self.last_activity.get(guild.id)
             if last_active:
                 inactive_time = (current_time - last_active).total_seconds()
-                if inactive_time > 600:
+                if inactive_time > 600 + self.queue_length:
                     await voice_client.disconnect()
                     if guild.id in self.queue:
                         self.queue[guild.id].clear()
@@ -107,12 +106,13 @@ class MusicBot(commands.Cog):
                 await interaction.followup.send(f"Invalid file type! Supported formats: `{', '.join(AUDIO_TYPES)}`")
                 return
             if file.size > 10485760:
-                await interaction.followup.send(f"File greater than 10MB!: {(file.size / 1000000):.2f}")
+                await interaction.followup.send(f"File greater than 10MB!: `{(file.size / 1000000):.2f}`")
                 return
 
             url = file.url
             title = file.filename
             thumbnail_url = None
+            duration = int(file.duration)
 
         else:
             # Search and queue the song
@@ -125,10 +125,12 @@ class MusicBot(commands.Cog):
                     if is_discord_url:
                         track_name, cdn_ext = get_file_extension(search)
                         if cdn_ext in AUDIO_TYPES:
+                            duration = await get_audio_duration(search)
                             info = {
                                 "url": search,
                                 "title": track_name,
                                 "thumbnail": None,
+                                "duration": duration,
                             }
 
                     elif is_soundcloud:
@@ -151,6 +153,7 @@ class MusicBot(commands.Cog):
                             else f"https://img.youtube.com/vi/{info['id']}/default.jpg"
                         )
                     )
+                    duration = info["duration"]
 
             except Exception as e:
                 await interaction.followup.send(f"An error occurred: {str(e)}")
@@ -162,20 +165,29 @@ class MusicBot(commands.Cog):
             status = "Added to Queue 📝"
 
         guild_queue = self.get_queue(interaction.guild_id)
-        guild_queue.append((url, title, thumbnail_url))
+        guild_queue.append((url, title, thumbnail_url, duration))
 
         embed = discord.Embed(
             title=status,
-            description=f"**{title}**",
+            description=f"**{title}** - `{convert(duration)}`",
             color=interaction.user.color,
         )
         embed.set_thumbnail(url=thumbnail_url)
 
-        await interaction.followup.send(embed=embed)
+        if file or is_discord_url:
+            thumbnail_file = discord.File("assets/music_file.svg", filename="music_file.svg")
+            embed.set_image(url="attachment://music_file.svg")
+            await interaction.followup.send(file=thumbnail_file, embed=embed)
+        else:
+            await interaction.followup.send(embed=embed)
 
         # Play if not already playing
         if not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
+            
+        # Add song time to timeout length
+        if duration is not None:
+            self.queue_length += duration
 
     async def play_next(self, interaction: discord.Interaction, send_message: bool = True):
         if not interaction.guild:
@@ -192,7 +204,7 @@ class MusicBot(commands.Cog):
         if not voice_client:
             return
 
-        url, title, thumbnail_url = guild_queue.pop(0)
+        url, title, thumbnail_url, duration = guild_queue.pop(0)
         self.update_activity(interaction.guild_id)  # Update activity timestamp
 
         # Choose FFMPEG options based on source type
@@ -216,7 +228,7 @@ class MusicBot(commands.Cog):
             if send_message:
                 embed = discord.Embed(
                     title="Now Playing 🎶",
-                    description=f"**{title}**",
+                    description=f"**{title}** - `{convert(duration)}`",
                     color=interaction.user.color,
                 )
                 embed.set_thumbnail(url=thumbnail_url)
