@@ -1,4 +1,3 @@
-import asyncio
 import io
 import json
 import os
@@ -36,9 +35,9 @@ def convert(seconds: int | None) -> str:
     min, sec = divmod(seconds, 60)
     hour, min = divmod(min, 60)
     if hour > 0:
-        return '%d:%02d:%02d' % (hour, min, sec)
+        return "%d:%02d:%02d" % (hour, min, sec)
     else:
-        return '%02d:%02d' % (min, sec)
+        return "%02d:%02d" % (min, sec)
 
 
 async def get_audio_duration(url: str) -> int | None:
@@ -54,5 +53,5 @@ async def get_audio_duration(url: str) -> int | None:
                     print(f"Failed to download audio file. Status code: {response.status}")
                     return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred in 'get_audio_duration': {e}")
         return None

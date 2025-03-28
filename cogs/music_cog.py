@@ -156,7 +156,7 @@ class MusicBot(commands.Cog):
                     duration = info["duration"]
 
             except Exception as e:
-                await interaction.followup.send(f"An error occurred: {str(e)}")
+                await interaction.followup.send(f"An error occurred in method 'play()': {e}")
                 return
 
         if not voice_client.is_playing():
@@ -184,7 +184,7 @@ class MusicBot(commands.Cog):
         # Play if not already playing
         if not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
-            
+
         # Add song time to timeout length
         if duration is not None:
             self.song_length += duration
@@ -236,7 +236,7 @@ class MusicBot(commands.Cog):
                 await interaction.channel.send(embed=embed)
 
         except Exception as e:
-            await interaction.channel.send(f"Error playing {title}: {str(e)}")
+            await interaction.channel.send(f"Error playing {title}: {e}")
             await self.play_next(interaction)
 
     @app_commands.command(name="skip", description="Skip the current song")
