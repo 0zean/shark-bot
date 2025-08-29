@@ -4,22 +4,28 @@ import os
 from urllib.parse import urlparse
 
 import aiohttp
-import soundfile as sf
+import discord
+import soundfile as sf  # type: ignore
+from discord.channel import VocalGuildChannel
+
+from schemas.audio_model import AudioConfig
 
 
-def load_config():
+def load_config() -> AudioConfig:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "configs.json")
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-    return {
-        "LOCAL_FFMPEG_OPTIONS": config["ffmpeg"]["local"],
-        "STREAM_FFMPEG_OPTIONS": config["ffmpeg"]["stream"],
-        "YDL_OPTIONS": config["ydl"],
-        "AUDIO_TYPES": tuple(config["audio_types"]),
+    conf = {
+        "local_ffmpeg_options": config["ffmpeg"]["local"],
+        "stream_ffmpeg_options": config["ffmpeg"]["stream"],
+        "yt_dlp_options": config["ydl"],
+        "audio_types": tuple(config["audio_types"]),
     }
+
+    return AudioConfig(**conf)
 
 
 def get_file_extension(url: str) -> tuple[str, str]:
@@ -29,15 +35,23 @@ def get_file_extension(url: str) -> tuple[str, str]:
     return base_name, file_extension.lower()
 
 
-def convert(seconds: int | None) -> str:
+def convert_time(seconds: int | None) -> str:
+    """
+    Convert video duration from seconds to hh:mm:ss.
+
+    Args:
+        seconds (int | None): Duration in seconds of the video.
+
+    Returns:
+        str: Converted time as a string i.e. hh:mm:ss or mm:ss.
+    """
     if seconds is None:
         return "Upload"
-    min, sec = divmod(seconds, 60)
-    hour, min = divmod(min, 60)
+    minute, sec = divmod(seconds, 60)
+    hour, minute = divmod(minute, 60)
     if hour > 0:
-        return "%d:%02d:%02d" % (hour, min, sec)
-    else:
-        return "%02d:%02d" % (min, sec)
+        return f"{hour}:{minute:02d}:{sec:02d}"
+    return f"{minute:02d}:{sec:02d}"
 
 
 async def get_audio_duration(url: str) -> int | None:
@@ -49,9 +63,14 @@ async def get_audio_duration(url: str) -> int | None:
                     with sf.SoundFile(audio_bytes) as audio_file:
                         duration = len(audio_file) / audio_file.samplerate
                     return duration
-                else:
-                    print(f"Failed to download audio file. Status code: {response.status}")
-                    return None
-    except Exception as e:
+                print(f"Failed to download audio file. Status code: {response.status}")
+                return None
+    except aiohttp.ClientError as e:
         print(f"An error occurred in 'get_audio_duration': {e}")
         return None
+
+
+def get_user_voice_channel(interaction: discord.Interaction) -> VocalGuildChannel | None:
+    if isinstance(interaction.user, discord.Member) and interaction.user.voice and interaction.user.voice.channel:
+        return interaction.user.voice.channel
+    return None
