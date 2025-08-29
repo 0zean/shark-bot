@@ -15,19 +15,22 @@ class BotClient(commands.Bot):
             intents=intents,
         )
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         await self.add_cog(MusicBot(self))
         await self.add_cog(NameChanger(self))
         await self.tree.sync()  # Sync slash commands with Discord
 
-    async def on_ready(self):
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print("")
+    async def on_ready(self) -> None:
+        if self.user:
+            print(f"Logged in as {self.user} (ID: {self.user.id})")
+            print("")
 
 
-async def main():
+async def main() -> None:
     async with BotClient() as client:
-        await client.start(os.getenv("DISCORD_TOKEN"))
+        token = os.getenv("DISCORD_TOKEN")
+        if isinstance(token, str):
+            await client.start(token)
 
 
 if __name__ == "__main__":
