@@ -1,5 +1,7 @@
 .python-version
 .env.local
 .env
+.venv/
+/assets
 __pycache__
 cookies.txt
