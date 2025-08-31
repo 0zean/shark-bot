@@ -1,4 +1,4 @@
-from .helper import load_config
+from helper import load_config
 
 _config = load_config()
 
