@@ -1,34 +1,25 @@
-[tool.poetry]
+[project]
 name = "shark-bot"
 version = "0.1.0"
-description = ""
-authors = ["0zean <pd1138@protonmail.com>"]
+description = "Add your description here"
 readme = "README.md"
-package-mode = false
+requires-python = ">=3.11.10"
+dependencies = [
+    "aiohttp>=3.12.15",
+    "asyncio>=4.0.0",
+    "discord-py>=2.6.3",
+    "pydantic>=2.11.7",
+    "pynacl>=1.5.0",
+    "python-dotenv>=1.1.1",
+    "soundfile>=0.13.1",
+    "yt-dlp>=2025.8.27",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-discord = "^2.3.2"
-PyNaCl = "^1.5.0"
-yt-dlp = "^2025.8.27"
-pydantic = "^2.11.7"
-python-dotenv = "^1.1.1"
-soundfile = "^0.13.1"
-aiohttp = "^3.12.15"
-asyncio = "^4.0.0"
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.4.1"
-pytest-cov = "^6.2.1"
-pytest-recording = "^0.13.4"
-hypothesis = "^6.138.6"
-
-[tool.poetry.group.dev.dependencies]
-pylint = "^3.3.8"
-flake8 = "^7.3.0"
-flake8-pyproject = "^1.2.3"
-mypy = "^1.17.1"
-ruff = "^0.12.10"
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+    "ruff>=0.12.11",
+]
 
 [tool.ruff]
 exclude = [".venv"]
@@ -37,37 +28,3 @@ line-length = 120
 lint.ignore = [
     "F403"
 ]
-
-[tool.flake8]
-max-complexity = 10
-format = "pylint"
-statistics = "True"
-max-line-length = 120
-ignore = ["E203", "W503"]
-
-[tool.mypy]
-ignore_missing_imports = true
-python_version = "3.11"
-platform = "linux"
-
-[tool.pylint.basic]
-argument-rgx = "[a-z_][a-z0-9_]{0,30}$"
-variable-rgx = "[a-z_][a-z0-9_]{0,30}$"
-max-line-length = 120
-fail-under = 8.0
-
-[tool.pylint.messages_control]
-disable = [
-    "design",
-    "duplicate-code",
-    "too-many-nested-blocks",
-    "missing-module-docstring",
-    "pointless-statement",
-    "missing-class-docstring",
-    "missing-function-docstring",
-    "possibly-used-before-assignment",
-]
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
