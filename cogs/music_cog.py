@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, cast
 
 import discord
-import yt_dlp
+import yt_dlp  # type: ignore
 from discord import app_commands
 from discord.channel import CategoryChannel, ForumChannel
 from discord.ext import commands, tasks
