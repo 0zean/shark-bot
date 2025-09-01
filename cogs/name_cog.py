@@ -8,8 +8,8 @@ from discord.ext import commands
 
 from utils.config_interface import ConfigInterface
 
-names = [name.strip() for name in Path("firstnames.txt").read_text("utf-8")]
-towns = [town.strip() for town in Path("towns.txt").read_text("utf-8")]
+names = [name.strip() for name in Path("firstnames.txt").read_text("utf-8").splitlines()]
+towns = [town.strip() for town in Path("towns.txt").read_text("utf-8").splitlines()]
 
 intents = discord.Intents.default()
 intents.message_content = True
