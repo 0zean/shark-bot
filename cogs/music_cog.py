@@ -140,7 +140,7 @@ class MusicBot(commands.Cog):
         if not await self._validate_interaction_context(interaction):
             return
 
-        if not await self._validate_file(file, interaction):
+        if file and not await self._validate_file(file, interaction):
             return
 
         # Update activity timestamp when play command is used
@@ -226,7 +226,7 @@ class MusicBot(commands.Cog):
             ffmpeg_opts = self.config.STREAM_FFMPEG_OPTIONS
 
         try:
-            source = await discord.FFmpegOpusAudio.from_probe(track_info.url, **ffmpeg_opts)  # type: ignore
+            source = await discord.FFmpegOpusAudio.from_probe(track.url, **ffmpeg_opts)  # type: ignore
 
             def after_playing(error: str):
                 if error:
