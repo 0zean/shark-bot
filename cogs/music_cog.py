@@ -1,6 +1,5 @@
 import asyncio
 from datetime import datetime
-from typing import Any, cast
 
 import discord
 import yt_dlp  # type: ignore
@@ -8,8 +7,12 @@ from discord import app_commands
 from discord.channel import CategoryChannel, ForumChannel
 from discord.ext import commands, tasks
 
-from utils.config import config
+from schemas.track import Track
+from utils.config import config_factory
+from utils.config_interface import ConfigInterface
 from utils.helper import convert_time, get_audio_duration, get_file_extension
+
+config = config_factory()
 
 # Setup intents
 intents = discord.Intents.default()
@@ -18,9 +21,10 @@ intents.voice_states = True
 
 
 class MusicBot(commands.Cog):
-    def __init__(self, client: commands.Bot):
+    def __init__(self, client: commands.Bot, config: ConfigInterface = config):
         self.client: commands.Bot = client
-        self.queue: dict[int, list[Any]] = {}  # Dictionary to store queues for different guilds
+        self.config = config
+        self.queue: dict[int, list[Track]] = {}  # Dictionary to store queues for different guilds
         self.last_activity: dict[int, datetime] = {}  # Dictionary to store last activity time for each guild
         self.last_channel: dict[
             int | None, discord.interactions.InteractionChannel | None
@@ -28,10 +32,93 @@ class MusicBot(commands.Cog):
         self.check_inactivity.start()
         self.song_length: int = 0
 
+    async def _validate_interaction_context(self, interaction: discord.Interaction) -> bool:
+        if not interaction.guild:
+            await interaction.followup.send("This command can only be used in a server!")
+            return False
+        if (
+            not isinstance(interaction.user, discord.Member)
+            or not interaction.user.voice
+            or not interaction.user.voice.channel
+        ):
+            await interaction.followup.send("You need to be in a voice channel!")
+            return False
+        return True
+
+    async def _validate_file(self, file: discord.Attachment | None, interaction: discord.Interaction) -> bool:
+        if file:
+            if not file.filename.lower().endswith(self.config.AUDIO_TYPES):
+                await interaction.followup.send(
+                    f"Invalid file type! supported formats: `{', '.join(self.config.AUDIO_TYPES)}`"
+                )
+                return False
+            if file.size > self.config.MAX_FILE_SIZE:
+                await interaction.followup.send(f"File greater than 10MB!: `{(file.size / 1000000):.2f}`")
+                return False
+            return True
+
+    async def _extract_track_info(
+        self, interaction: discord.Interaction, search: str | None, file: discord.Attachment | None
+    ) -> Track | None:
+        if file:
+            duration = await get_audio_duration(file.url)
+            return Track(url=file.url, title=file.filename, thumbnail_url=None, duration=duration)
+
+        if not search:
+            await interaction.followup.send("You need to provide a search query or a file!")
+            return None
+
+        try:
+            with yt_dlp.YoutubeDL(self.config.YDL_OPTIONS) as ydl:
+                is_soundcloud = "soundcloud.com" in search
+                is_discord_file = "cdn.discordapp.com/attachments/" in search
+
+                if is_discord_file:
+                    track_name, cdn_ext = get_file_extension(search)
+                    if cdn_ext in self.config.AUDIO_TYPES:
+                        duration = await get_audio_duration(search)
+                        return Track(url=search, title=track_name, thumbnail=None, duration=duration)
+                if is_soundcloud:
+                    info = ydl.extract_info(search, download=False)  # type: ignore
+                    return Track(
+                        url=info["url"],
+                        title=info["title"],
+                        thumbnail=info.get("thumbnail"),
+                        duration=info.get("duraction"),
+                    )
+
+                info = ydl.extract_info(f"ytsearch:{search}", download=False)
+                if "entries" in info:
+                    info = info["entries"][0]  # type: ignore
+                    return Track(
+                        url=info["url"],
+                        title=info["title"],
+                        thumbnail_url=f"https://img.youtube.com/vi/{info['id']}/default.jpg",
+                        duration=info.get("duration"),
+                    )
+        except Exception as e:
+            await interaction.followup.send(f"An error occurred in in `play()` command: {e}")
+            return None
+
+    def _add_to_queue(self, guild_id: int, track: Track) -> None:
+        if guild_id not in self.queue:
+            self.queue[guild_id] = []
+        self.queue[guild_id].append(track)
+
+    def _create_embed(self, interaction: discord.Interaction, track: Track, status: str) -> discord.Embed:
+        embed = discord.Embed(
+            title=status,
+            description=f"**{track.title}** - `{convert_time(track.duration)}`",
+            color=interaction.user.color,
+        )
+        if track.thumbnail_url:
+            embed.set_thumbnail(url=track.thumbnail_url)
+        return embed
+
     async def cog_unload(self) -> None:
         self.check_inactivity.cancel()
 
-    @tasks.loop(seconds=config.inactivity_check)
+    @tasks.loop(seconds=60)
     async def check_inactivity(self) -> None:
         """Check if bot has been inactive for 10 mins."""
         current_time = datetime.now()
@@ -44,7 +131,7 @@ class MusicBot(commands.Cog):
             last_active = self.last_activity.get(guild.id)
             if last_active:
                 inactive_time = (current_time - last_active).total_seconds()
-                if inactive_time > config.inactivity_timer + self.song_length:
+                if inactive_time > self.config.INACTIVITY_TIMER + self.song_length:
                     await voice_client.disconnect(force=True)
                     if guild.id in self.queue:
                         self.queue[guild.id].clear()
@@ -65,7 +152,7 @@ class MusicBot(commands.Cog):
         """
         self.last_activity[guild_id] = datetime.now()
 
-    def get_queue(self, guild_id: int) -> list[Any]:
+    def get_queue(self, guild_id: int) -> list[Track]:
         """Get the queue for a specific guild"""
         if guild_id not in self.queue:
             self.queue[guild_id] = []
@@ -77,8 +164,10 @@ class MusicBot(commands.Cog):
     ) -> None:
         await interaction.response.defer()
 
-        if not interaction.guild:
-            await interaction.followup.send("This command can only be used in a server!")
+        if not await self._validate_interaction_context(interaction):
+            return
+
+        if not await self._validate_file(file, interaction):
             return
 
         # Update activity timestamp when play command is used
@@ -86,18 +175,8 @@ class MusicBot(commands.Cog):
             self.update_activity(interaction.guild_id)
             self.last_channel[interaction.guild_id] = interaction.channel
 
-        # Check if user is in a voice channel
-        if (
-            not isinstance(interaction.user, discord.Member)
-            or not interaction.user.voice
-            or not interaction.user.voice.channel
-        ):
-            await interaction.followup.send("You need to be in a voice channel!")
-            return
-
-        voice_channel = interaction.user.voice.channel
-
         # Connect to voice channel if not already connected
+        voice_channel = interaction.user.voice.channel
         try:
             voice_client = interaction.guild.voice_client
             if not voice_client:
@@ -106,73 +185,9 @@ class MusicBot(commands.Cog):
             await interaction.followup.send("Error connecting to voice channel. Please try again.")
             return
 
-        url = None
-        title = None
-        thumbnail_url = None
-        duration = None
-
-        if file:
-            if not file.filename.lower().endswith(config.AUDIO_TYPES):
-                await interaction.followup.send(
-                    f"Invalid file type! Supported formats: `{', '.join(config.AUDIO_TYPES)}`"
-                )
-                return
-            if file.size > config.max_file_size:
-                await interaction.followup.send(f"File greater than 10MB!: `{(file.size / 1000000):.2f}`")
-                return
-
-            url = file.url
-            title = file.filename
-            thumbnail_url = None
-            duration = await get_audio_duration(file.url)
-
-        else:
-            # Search and queue the song
-            try:
-                with yt_dlp.YoutubeDL(config.YDL_OPTIONS) as ydl:
-                    # Check if the input is a SoundCloud link
-                    if search:
-                        is_soundcloud = "soundcloud.com" in search
-                        is_discord_url = "cdn.discordapp.com/attachments/" in search
-
-                        info: dict[str, str | int | None] = {}
-
-                        if is_discord_url:
-                            track_name, cdn_ext = get_file_extension(search)
-                            if cdn_ext in config.AUDIO_TYPES:
-                                duration = await get_audio_duration(search)
-                                info = {
-                                    "url": search,
-                                    "title": track_name,
-                                    "thumbnail": None,
-                                    "duration": duration,
-                                }
-
-                        elif is_soundcloud:
-                            # Extract SoundCloud info
-                            info = ydl.extract_info(search, download=False)  # type: ignore
-                        else:
-                            # Use YouTube search
-                            info = ydl.extract_info(f"ytsearch:{search}", download=False)  # type: ignore
-                            if "entries" in info:
-                                info = info["entries"][0]  # type: ignore
-
-                        url = info["url"]
-                        title = info["title"]
-                        thumbnail_url = (
-                            None
-                            if is_discord_url
-                            else (
-                                info.get("thumbnail")
-                                if is_soundcloud
-                                else f"https://img.youtube.com/vi/{info['id']}/default.jpg"
-                            )
-                        )
-                        duration = cast(int, info["duration"])
-
-            except Exception as e:
-                await interaction.followup.send(f"An error occurred in method 'play()': {e}")
-                return
+        track = await self._extract_track_info(interaction, search, file)
+        if not track:
+            return
 
         if isinstance(voice_client, discord.VoiceClient) and not voice_client.is_playing():
             status = "Now Playing 🎶"
@@ -180,30 +195,25 @@ class MusicBot(commands.Cog):
             status = "Added to Queue 📝"
 
         if isinstance(interaction.guild_id, int):
-            guild_queue = self.get_queue(interaction.guild_id)
-            guild_queue.append((url, title, thumbnail_url, duration))
+            self._add_to_queue(interaction.guild_id, track)
 
-        embed = discord.Embed(
-            title=status,
-            description=f"**{title}** - `{convert_time(duration)}`",
-            color=interaction.user.color,
-        )
-        embed.set_thumbnail(url=thumbnail_url)
+        embed = self._create_embed(interaction, track, status)
+        await interaction.followup.send(embed=embed)
 
+        # TODO: Add default thumbnail file for attachments
         # if file or is_discord_url:
         #     thumbnail_file = discord.File("/root/dev/discord-bot/assets/music_file.png", filename="music_file.png")
         #     embed.set_image(url="attachment://music_file.png")
         #     await interaction.followup.send(file=thumbnail_file, embed=embed)
         # else:
-        await interaction.followup.send(embed=embed)
 
         # Play if not already playing
         if isinstance(voice_client, discord.VoiceClient) and not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
 
         # Add song time to timeout length
-        if duration is not None:
-            self.song_length += duration
+        if track.duration is not None:
+            self.song_length += track.duration
 
     async def play_next(self, interaction: discord.Interaction, send_message: bool = True) -> None:
         """
@@ -237,10 +247,10 @@ class MusicBot(commands.Cog):
         # Choose FFMPEG options based on source type
         if isinstance(url, discord.Attachment) or "cdn.discordapp.com" in url:
             # Use high quality settings for Discord uploads and CDN
-            ffmpeg_opts = config.LOCAL_FFMPEG_OPTIONS
+            ffmpeg_opts = self.config.LOCAL_FFMPEG_OPTIONS
         else:
             # Use bandwidth-optimized settings for YouTube/Soundcloud streams
-            ffmpeg_opts = config.STREAM_FFMPEG_OPTIONS
+            ffmpeg_opts = self.config.STREAM_FFMPEG_OPTIONS
 
         try:
             source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_opts)  # type: ignore
