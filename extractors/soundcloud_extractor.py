@@ -11,6 +11,6 @@ class SoundCloudExtractor:
             return Track(
                 url=info["url"],
                 title=info["title"],
-                thumbnail=info.get("thumbnail"),
+                thumbnail_url=info.get("thumbnail"),
                 duration=info.get("duraction"),
             )
