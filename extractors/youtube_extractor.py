@@ -6,7 +6,7 @@ from utils.config_interface import ConfigInterface
 
 class YouTubeExtractor:
     async def extract(self, search: str, config: ConfigInterface) -> Track | None:
-        with yt_dlp.YoutubeDL(config.YDL_OPTIONS) as ydl:
+        with yt_dlp.YoutubeDL(config.YDL_OPTIONS.model_dump()) as ydl:
             info = ydl.extract_info(f"ytsearch:{search}", download=False)
             if "entries" in info:
                 info = info["entries"][0]  # type: ignore
@@ -14,5 +14,5 @@ class YouTubeExtractor:
                     url=info["url"],
                     title=info["title"],
                     thumbnail_url=f"https://img.youtube.com/vi/{info['id']}/default.jpg",
-                    duration=info.get("duration"),
+                    duration=info["duration"],
                 )

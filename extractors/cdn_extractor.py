@@ -8,4 +8,4 @@ class CdnExtractor:
         track_name, cdn_ext = get_file_extension(search)
         if cdn_ext in config.AUDIO_TYPES:
             duration = await get_audio_duration(search)
-            return Track(url=search, title=track_name, thumbnail=None, duration=duration)
+            return Track(url=search, title=track_name, thumbnail_url=None, duration=duration)
