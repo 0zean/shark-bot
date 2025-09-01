@@ -1,4 +1,5 @@
 .python-version
+.ruff_cache
 .env.local
 .env
 .venv/
