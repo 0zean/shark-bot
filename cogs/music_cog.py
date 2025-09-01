@@ -2,18 +2,14 @@ import asyncio
 from datetime import datetime
 
 import discord
-import yt_dlp  # type: ignore
 from discord import app_commands
 from discord.channel import CategoryChannel, ForumChannel
 from discord.ext import commands, tasks
 
 from extractors.extractor_factory import get_extractor
 from schemas.track import Track
-from utils.config import config_factory
 from utils.config_interface import ConfigInterface
-from utils.helper import convert_time, get_audio_duration, get_file_extension
-
-config = config_factory()
+from utils.helper import convert_time, get_audio_duration
 
 # Setup intents
 intents = discord.Intents.default()
@@ -22,9 +18,9 @@ intents.voice_states = True
 
 
 class MusicBot(commands.Cog):
-    def __init__(self, client: commands.Bot, config: ConfigInterface = config):
+    def __init__(self, client: commands.Bot, config: ConfigInterface):
         self.client: commands.Bot = client
-        self.config = config
+        self.config: ConfigInterface = config
         self.queue: dict[int, list[Track]] = {}  # Dictionary to store queues for different guilds
         self.last_activity: dict[int, datetime] = {}  # Dictionary to store last activity time for each guild
         self.last_channel: dict[
@@ -57,6 +53,7 @@ class MusicBot(commands.Cog):
                 await interaction.followup.send(f"File greater than 10MB!: `{(file.size / 1000000):.2f}`")
                 return False
             return True
+        return False
 
     async def _extract_track_info(
         self, interaction: discord.Interaction, search: str | None, file: discord.Attachment | None
@@ -217,11 +214,11 @@ class MusicBot(commands.Cog):
         if not voice_client:
             return
 
-        url, title, thumbnail_url, duration = guild_queue.pop(0)
+        track = guild_queue.pop(0)
         self.update_activity(interaction.guild_id)  # Update activity timestamp
 
         # Choose FFMPEG options based on source type
-        if isinstance(url, discord.Attachment) or "cdn.discordapp.com" in url:
+        if isinstance(track.url, discord.Attachment) or "cdn.discordapp.com" in track.url:
             # Use high quality settings for Discord uploads and CDN
             ffmpeg_opts = self.config.LOCAL_FFMPEG_OPTIONS
         else:
@@ -229,7 +226,7 @@ class MusicBot(commands.Cog):
             ffmpeg_opts = self.config.STREAM_FFMPEG_OPTIONS
 
         try:
-            source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_opts)  # type: ignore
+            source = await discord.FFmpegOpusAudio.from_probe(track_info.url, **ffmpeg_opts)  # type: ignore
 
             def after_playing(error: str):
                 if error:
@@ -243,18 +240,12 @@ class MusicBot(commands.Cog):
                 and interaction.channel
                 and not isinstance(interaction.channel, (ForumChannel, CategoryChannel))
             ):
-                embed = discord.Embed(
-                    title="Now Playing 🎶",
-                    description=f"**{title}** - `{convert_time(duration)}`",
-                    color=interaction.user.color,
-                )
-                embed.set_thumbnail(url=thumbnail_url)
-
+                embed = self._create_embed(interaction, track, status="Now Playing 🎶")
                 await interaction.channel.send(embed=embed)
 
         except Exception as e:
             if interaction.channel and not isinstance(interaction.channel, (ForumChannel, CategoryChannel)):
-                await interaction.channel.send(f"Error playing {title}: {e}")
+                await interaction.channel.send(f"Error playing {track.title}: {e}")
             await self.play_next(interaction)
 
     @app_commands.command(name="skip", description="Skip the current song")

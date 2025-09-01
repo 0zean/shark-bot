@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 from cogs.music_cog import MusicBot, intents
 from cogs.name_cog import NameChanger
+from utils.config import config_factory
+
+config = config_factory()
 
 
 class BotClient(commands.Bot):
@@ -16,8 +19,8 @@ class BotClient(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self.add_cog(MusicBot(self))
-        await self.add_cog(NameChanger(self))
+        await self.add_cog(MusicBot(self, config=config))
+        await self.add_cog(NameChanger(self, config=config))
         await self.tree.sync()  # Sync slash commands with Discord
 
     async def on_ready(self) -> None:

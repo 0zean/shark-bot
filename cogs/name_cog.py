@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils.config import config
+from utils.config_interface import ConfigInterface
 
 names = [name.strip() for name in Path("firstnames.txt").read_text("utf-8")]
 towns = [town.strip() for town in Path("towns.txt").read_text("utf-8")]
@@ -17,8 +17,9 @@ intents.voice_states = True
 
 
 class NameChanger(commands.Cog):
-    def __init__(self, client: commands.Bot):
+    def __init__(self, client: commands.Bot, config: ConfigInterface):
         self.client: commands.Bot = client
+        self.config: ConfigInterface = config
 
     @app_commands.command(name="name", description="Changes username to randomized one.")
     async def name(self, interaction: discord.Interaction) -> None:
@@ -65,7 +66,7 @@ class NameChanger(commands.Cog):
             if isinstance(interaction.channel, discord.TextChannel):
                 deleted = await interaction.channel.purge(limit=limit + 1, check=lambda m: m.author == self.client.user)
                 confirm = await interaction.channel.send(f"Deleted `{len(deleted) - 1}` messages! 🧹")
-                await asyncio.sleep(config.delete_timer)
+                await asyncio.sleep(self.config.DELETE_TIMER)
                 await confirm.delete()
             else:
                 await interaction.followup.send("This command can only be used in text channels!")
