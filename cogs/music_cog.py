@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.channel import CategoryChannel, ForumChannel
 from discord.ext import commands, tasks
 
+from extractors.extractor_factory import get_extractor
 from schemas.track import Track
 from utils.config import config_factory
 from utils.config_interface import ConfigInterface
@@ -69,33 +70,8 @@ class MusicBot(commands.Cog):
             return None
 
         try:
-            with yt_dlp.YoutubeDL(self.config.YDL_OPTIONS) as ydl:
-                is_soundcloud = "soundcloud.com" in search
-                is_discord_file = "cdn.discordapp.com/attachments/" in search
-
-                if is_discord_file:
-                    track_name, cdn_ext = get_file_extension(search)
-                    if cdn_ext in self.config.AUDIO_TYPES:
-                        duration = await get_audio_duration(search)
-                        return Track(url=search, title=track_name, thumbnail=None, duration=duration)
-                if is_soundcloud:
-                    info = ydl.extract_info(search, download=False)  # type: ignore
-                    return Track(
-                        url=info["url"],
-                        title=info["title"],
-                        thumbnail=info.get("thumbnail"),
-                        duration=info.get("duraction"),
-                    )
-
-                info = ydl.extract_info(f"ytsearch:{search}", download=False)
-                if "entries" in info:
-                    info = info["entries"][0]  # type: ignore
-                    return Track(
-                        url=info["url"],
-                        title=info["title"],
-                        thumbnail_url=f"https://img.youtube.com/vi/{info['id']}/default.jpg",
-                        duration=info.get("duration"),
-                    )
+            extractor = get_extractor(search=search)
+            return await extractor.extract(search=search, config=self.config)
         except Exception as e:
             await interaction.followup.send(f"An error occurred in in `play()` command: {e}")
             return None
