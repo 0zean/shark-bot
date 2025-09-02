@@ -70,7 +70,7 @@ class MusicBot(commands.Cog):
             extractor = get_extractor(search=search)
             return await extractor.extract(search=search, config=self.config)
         except Exception as e:
-            await interaction.followup.send(f"An error occurred in in `play()` command: {e}")
+            await interaction.followup.send(f"An error occurred in in `/play` command: {e}")
             return None
 
     def _add_to_queue(self, guild_id: int, track: Track) -> None:
