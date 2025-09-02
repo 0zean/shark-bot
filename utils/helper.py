@@ -1,7 +1,7 @@
 import io
 import json
 import os
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import aiohttp
 import discord
@@ -74,3 +74,25 @@ def get_user_voice_channel(interaction: discord.Interaction) -> VocalGuildChanne
     if isinstance(interaction.user, discord.Member) and interaction.user.voice and interaction.user.voice.channel:
         return interaction.user.voice.channel
     return None
+
+
+def clean_youtube_url(url: str) -> str:
+    """
+    Cleans YouTube URLs to remove playlist query param.
+
+    Args:
+        url (str): URL of YouTube video.
+
+    Returns:
+        str: The cleaned URL.
+    """
+    parsed = urlparse(url)
+    query_params = parse_qs(parsed.query)
+
+    query_params.pop("list", None)
+
+    new_query = urlencode(query_params, doseq=True)
+    cleaned_url = urlunparse(parsed._replace(query=new_query))
+
+    return cleaned_url
+
