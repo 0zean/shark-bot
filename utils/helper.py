@@ -55,6 +55,15 @@ def convert_time(seconds: int | None) -> str:
 
 
 async def get_audio_duration(url: str) -> int | None:
+    """
+    Get duration of audio from file or CDN link.
+
+    Args:
+        url (str): URL of the audio file or CDN link.
+
+    Returns:
+        int | None: Duration in seconds of audio or None.
+    """
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -62,7 +71,7 @@ async def get_audio_duration(url: str) -> int | None:
                     audio_bytes = io.BytesIO(await response.read())
                     with sf.SoundFile(audio_bytes) as audio_file:
                         duration = len(audio_file) / audio_file.samplerate
-                    return duration
+                    return round(duration)
                 print(f"Failed to download audio file. Status code: {response.status}")
                 return None
     except aiohttp.ClientError as e:
