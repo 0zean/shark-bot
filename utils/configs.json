@@ -10,7 +10,7 @@
         }
     },
     "ydl": {
-        "format": "bestaudio",
+        "format": "bestaudio[ext=mp3]/bestaudio/best",
         "noplaylist": true,
         "cookiefile": "cookies.txt"
     },
