@@ -95,4 +95,3 @@ def clean_youtube_url(url: str) -> str:
     cleaned_url = urlunparse(parsed._replace(query=new_query))
 
     return cleaned_url
-
