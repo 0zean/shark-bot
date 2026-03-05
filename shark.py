@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("shark_bot")
 
-# Intialize intents at entry 
+# Intialize intents at entry
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True

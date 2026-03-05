@@ -21,7 +21,7 @@ def load_config() -> AudioConfig:
     """Load bot audio configuration from the bundled JSON file.
 
     Returns:
-        A validated :class:`schemas.audio_model.AudioConfig` instance.
+        AudioConfig: A validated :class:`schemas.audio_model.AudioConfig` instance.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, "configs.json")
@@ -43,10 +43,10 @@ def get_file_extension(url: str) -> tuple[str, str]:
     """Extract the base filename and lowercased extension from a URL.
 
     Args:
-        url: A fully-qualified URL string.
+        url (str): A fully-qualified URL string.
 
     Returns:
-        A ``(base_name, extension)`` tuple, e.g. ``("song", ".mp3")``.
+        tuple[str,str]: A ``(base_name, extension)`` tuple, e.g. ``("song", ".mp3")``.
     """
     parsed_url = urlparse(url)
     file_name = os.path.basename(parsed_url.path)
@@ -58,10 +58,10 @@ def convert_time(seconds: int | None) -> str:
     """Convert a duration in seconds to a human-readable ``hh:mm:ss`` string.
 
     Args:
-        seconds: Duration in seconds, or ``None`` for uploaded files.
+        seconds (int|None): Duration in seconds, or ``None`` for uploaded files.
 
     Returns:
-        A formatted time string such as ``"3:45"`` or ``"1:02:30"``.
+        str: A formatted time string such as ``"3:45"`` or ``"1:02:30"``.
         Returns ``"Upload"`` when *seconds* is ``None``.
     """
     if seconds is None:
@@ -81,13 +81,13 @@ async def get_audio_duration(
     """Fetch and return the duration of a remote audio file in seconds.
 
     Args:
-        url: URL of the audio file to inspect.
-        session: An optional pre-existing :class:`aiohttp.ClientSession` to
+        url (str): URL of the audio file to inspect.
+        session (aiohttp.ClientSession|None): An optional pre-existing :class:`aiohttp.ClientSession` to
             reuse. When ``None`` a new session with a 10 s timeout is created
             for this call only.
 
     Returns:
-        Rounded duration in seconds, or ``None`` if the file cannot be read.
+        int|None: Rounded duration in seconds, or ``None`` if the file cannot be read.
     """
 
     async def _fetch(client: aiohttp.ClientSession) -> int | None:
@@ -115,10 +115,10 @@ def get_user_voice_channel(interaction: discord.Interaction) -> VocalGuildChanne
     """Return the voice channel the interaction user is currently in.
 
     Args:
-        interaction: The Discord interaction.
+        interaction (discord.Interaction): The Discord interaction.
 
     Returns:
-        The user's :class:`discord.channel.VocalGuildChannel`, or ``None``.
+        VocalGuildChannel|None: The user's :class:`discord.channel.VocalGuildChannel`, or ``None``.
     """
     if isinstance(interaction.user, discord.Member) and interaction.user.voice and interaction.user.voice.channel:
         return interaction.user.voice.channel
@@ -129,10 +129,10 @@ def clean_youtube_url(url: str) -> str:
     """Strip the ``list`` (playlist) query parameter from a YouTube URL.
 
     Args:
-        url: A YouTube video URL, potentially containing playlist parameters.
+        url (str): A YouTube video URL, potentially containing playlist parameters.
 
     Returns:
-        The cleaned URL with the ``list`` query parameter removed.
+        str: The cleaned URL with the ``list`` query parameter removed.
     """
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
