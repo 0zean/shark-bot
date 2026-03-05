@@ -64,9 +64,7 @@ class NameChanger(commands.Cog):
 
         try:
             if isinstance(interaction.channel, discord.TextChannel):
-                deleted = await interaction.channel.purge(
-                    limit=limit + 1, check=lambda m: m.author == self.client.user
-                )
+                deleted = await interaction.channel.purge(limit=limit + 1, check=lambda m: m.author == self.client.user)
                 confirm = await interaction.channel.send(f"Deleted `{len(deleted) - 1}` messages! 🧹")
                 logger.info(
                     "Purged bot messages",

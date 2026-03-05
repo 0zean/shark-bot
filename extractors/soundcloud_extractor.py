@@ -1,5 +1,6 @@
-import yt_dlp
 import asyncio
+
+import yt_dlp
 
 from schemas.track import Track
 from utils.config_interface import ConfigInterface

@@ -89,13 +89,12 @@ async def get_audio_duration(
     Returns:
         Rounded duration in seconds, or ``None`` if the file cannot be read.
     """
+
     async def _fetch(client: aiohttp.ClientSession) -> int | None:
         try:
             async with client.get(url) as response:
                 if response.status != 200:
-                    logger.warning(
-                        "Failed to download audio file — HTTP %s", response.status, extra={"url": url}
-                    )
+                    logger.warning("Failed to download audio file — HTTP %s", response.status, extra={"url": url})
                     return None
                 audio_bytes = io.BytesIO(await response.read())
                 with sf.SoundFile(audio_bytes) as audio_file:

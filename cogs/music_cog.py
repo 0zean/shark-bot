@@ -221,8 +221,10 @@ class MusicBot(commands.Cog):
             if isinstance(voice_client, discord.VoiceClient):
                 voice_client.play(source, after=after_playing)
 
-            if send_message and interaction.channel and not isinstance(
-                interaction.channel, (ForumChannel, CategoryChannel)
+            if (
+                send_message
+                and interaction.channel
+                and not isinstance(interaction.channel, (ForumChannel, CategoryChannel))
             ):
                 embed = self._create_embed(interaction, track, status="Now Playing 🎶")
                 await interaction.channel.send(embed=embed)
@@ -312,9 +314,7 @@ class MusicBot(commands.Cog):
         ):
             asyncio.create_task(self._handle_alone_in_channel(member.guild, voice_client))
 
-    async def _handle_alone_in_channel(
-        self, guild: discord.Guild, voice_client: discord.VoiceClient
-    ) -> None:
+    async def _handle_alone_in_channel(self, guild: discord.Guild, voice_client: discord.VoiceClient) -> None:
         """Disconnect and notify after a 5-second grace period if still alone.
 
         Args:
@@ -327,9 +327,7 @@ class MusicBot(commands.Cog):
         if not voice_client.is_connected() or len(voice_client.channel.members) > 1:  # type: ignore[union-attr]  # discord.py stubs gap
             return
 
-        logger.info(
-            "Disconnecting from %s — bot was left alone", guild.name, extra={"guild_id": guild.id}
-        )
+        logger.info("Disconnecting from %s — bot was left alone", guild.name, extra={"guild_id": guild.id})
 
         last_text_channel = self.last_channel.get(guild.id)
         if last_text_channel and not isinstance(last_text_channel, (ForumChannel, CategoryChannel)):

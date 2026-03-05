@@ -89,8 +89,7 @@ class MusicService:
         return [
             guild_id
             for guild_id, last_active in self.last_activity.items()
-            if (now - last_active).total_seconds()
-            > self.config.INACTIVITY_TIMER + self._song_length.get(guild_id, 0)
+            if (now - last_active).total_seconds() > self.config.INACTIVITY_TIMER + self._song_length.get(guild_id, 0)
         ]
 
     # ------------------------------------------------------------------

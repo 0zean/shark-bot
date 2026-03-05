@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("shark_bot")
 
-# Intents belong at the entry-point level, not inside a cog
+# Intialize intents at entry 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
@@ -59,8 +59,7 @@ async def main() -> None:
     token = os.getenv("DISCORD_TOKEN")
     if not token:
         raise RuntimeError(
-            "DISCORD_TOKEN environment variable is missing or empty. "
-            "Set it in your .env file before starting the bot."
+            "DISCORD_TOKEN environment variable is missing or empty. Set it in your .env file before starting the bot."
         )
 
     async with BotClient() as client:
