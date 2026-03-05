@@ -10,11 +10,11 @@ class CdnExtractor:
         """Build a Track from a Discord CDN audio URL.
 
         Args:
-            search: The Discord CDN attachment URL.
-            config: Bot configuration (provides supported audio types).
+            search (str): The Discord CDN attachment URL.
+            config (ConfigInterface): Bot configuration (provides supported audio types).
 
         Returns:
-            A :class:`Track` if the URL has a supported audio extension,
+            Track|None: A :class:`Track` if the URL has a supported audio extension,
             otherwise ``None``.
         """
         track_name, cdn_ext = get_file_extension(search)
