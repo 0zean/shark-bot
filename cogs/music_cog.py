@@ -35,10 +35,10 @@ class MusicBot(commands.Cog):
         """Verify the interaction is guild-scoped and the user is in a voice channel.
 
         Args:
-            interaction: The incoming Discord interaction.
+            interaction (discord.Interaction): The incoming Discord interaction.
 
         Returns:
-            ``True`` if the context is valid, ``False`` otherwise (followup sent).
+            bool: ``True`` if the context is valid, ``False`` otherwise (followup sent).
         """
         if not interaction.guild:
             await interaction.followup.send("This command can only be used in a server!")
@@ -56,12 +56,12 @@ class MusicBot(commands.Cog):
         """Build an embed for a track status message.
 
         Args:
-            interaction: The Discord interaction (used for user colour).
-            track: The track to display.
-            status: The status string shown as the embed title.
+            interaction (discord.Interaction): The Discord interaction (used for user color).
+            track (Track): The track to display.
+            status (str): The status string shown as the embed title.
 
         Returns:
-            A formatted :class:`discord.Embed`.
+            discord.Embed: A formatted :class:`discord.Embed`.
         """
         embed = discord.Embed(
             title=status,
@@ -109,9 +109,9 @@ class MusicBot(commands.Cog):
         """Queue and play a track.
 
         Args:
-            interaction: The Discord interaction.
-            search: A YouTube/SoundCloud search query or URL.
-            file: An optional audio attachment to play directly.
+            interaction (discord.Interaction): The Discord interaction.
+            search (str | None): A YouTube/SoundCloud search query or URL.
+            file (discord.Attachment | None): An optional audio attachment to play directly.
         """
         await interaction.response.defer()
 
@@ -177,9 +177,9 @@ class MusicBot(commands.Cog):
         """Advance to the next track in the queue.
 
         Args:
-            interaction: The Discord interaction that initiated playback.
-            send_message: Whether to post a "Now Playing" embed. Defaults to ``True``.
-            _retries: Internal retry counter — prevents infinite recursion on
+            interaction (discord.Interaction): The Discord interaction that initiated playback.
+            send_message (bool): Whether to post a "Now Playing" embed. Defaults to ``True``.
+            _retries (int): Internal retry counter - prevents infinite recursion on
                 persistent playback errors. Max 3 retries before giving up.
         """
         _MAX_RETRIES = 3
@@ -238,14 +238,14 @@ class MusicBot(commands.Cog):
                 logger.warning("Retrying next track (attempt %d/%d)", _retries + 1, _MAX_RETRIES)
                 await self.play_next(interaction, send_message=True, _retries=_retries + 1)
             else:
-                logger.error("Max retries reached — stopping playback.")
+                logger.error("Max retries reached - stopping playback.")
 
     @app_commands.command(name="skip", description="Skip the current song")
     async def skip(self, interaction: discord.Interaction) -> None:
         """Skip the currently playing track.
 
         Args:
-            interaction: The Discord interaction.
+            interaction (discord.Interaction): The Discord interaction.
         """
         if not interaction.guild or not interaction.guild_id:
             await interaction.response.send_message("This command can only be used in a server!")
@@ -266,7 +266,7 @@ class MusicBot(commands.Cog):
         """Disconnect the bot from the current voice channel and clear the queue.
 
         Args:
-            interaction: The Discord interaction.
+            interaction (discord.Interaction): The Discord interaction.
         """
         if not interaction.guild:
             await interaction.response.send_message("This command can only be used in a server!")
@@ -294,9 +294,9 @@ class MusicBot(commands.Cog):
         """Disconnect when the bot is left alone in a voice channel.
 
         Args:
-            member: The guild member whose voice state changed.
-            before: The member's voice state before the change.
-            after: The member's voice state after the change.
+            member (discord.Member): The guild member whose voice state changed.
+            before (discord.VoiceState): The member's voice state before the change.
+            after (discord.VoiceState): The member's voice state after the change.
         """
         if member.guild.voice_client is None:
             return
@@ -305,7 +305,7 @@ class MusicBot(commands.Cog):
         if after.channel and after.channel.id == member.guild.voice_client.channel.id:  # type: ignore[union-attr,attr-defined]
             self.music_service.update_activity(member.guild.id)
 
-        # Fire-and-forget: check if bot is alone after a short grace period
+        # Check if bot is alone after a short grace period
         voice_client = member.guild.voice_client
         if (
             isinstance(voice_client, discord.VoiceClient)
@@ -318,23 +318,23 @@ class MusicBot(commands.Cog):
         """Disconnect and notify after a 5-second grace period if still alone.
 
         Args:
-            guild: The guild the bot is connected to.
-            voice_client: The active voice client for the guild.
+            guild (discord.Guild): The guild the bot is connected to.
+            voice_client (discord.VoiceClient): The active voice client for the guild.
         """
         await asyncio.sleep(5)
 
-        # Re-check after the grace period — a user may have rejoined
+        # Re-check after the grace period - a user may have rejoined
         if not voice_client.is_connected() or len(voice_client.channel.members) > 1:  # type: ignore[union-attr]  # discord.py stubs gap
             return
 
-        logger.info("Disconnecting from %s — bot was left alone", guild.name, extra={"guild_id": guild.id})
+        logger.info("Disconnecting from %s - bot was left alone", guild.name, extra={"guild_id": guild.id})
 
         last_text_channel = self.last_channel.get(guild.id)
         if last_text_channel and not isinstance(last_text_channel, (ForumChannel, CategoryChannel)):
             try:
                 await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
             except discord.HTTPException:
-                pass  # Non-fatal — continue with disconnection
+                pass  # Non-fatal. Continue with disconnection
 
         await voice_client.disconnect(force=True)
         self.music_service.clear_queue(guild.id)

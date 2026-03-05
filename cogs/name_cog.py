@@ -24,7 +24,7 @@ class NameChanger(commands.Cog):
         """Change the invoking user's nickname to a randomly generated one.
 
         Args:
-            interaction: The Discord interaction.
+            interaction (discord.Interaction): The Discord interaction.
         """
         await interaction.response.defer()
 
@@ -53,8 +53,8 @@ class NameChanger(commands.Cog):
         """Delete bot-authored messages from the current text channel.
 
         Args:
-            interaction: The Discord interaction.
-            limit: Maximum number of messages to scan. Defaults to 100.
+            interaction (discord.Interaction): The Discord interaction.
+            limit (int): Maximum number of messages to scan. Defaults to 100.
         """
         await interaction.response.defer()
 
