@@ -1,35 +1,45 @@
 import asyncio
-from datetime import datetime
+import logging
 
 import discord
 from discord import app_commands
 from discord.channel import CategoryChannel, ForumChannel
 from discord.ext import commands, tasks
 
-from extractors.extractor_factory import get_extractor
 from schemas.track import Track
+from services.music_service import MusicService
 from utils.config_interface import ConfigInterface
-from utils.helper import convert_time, get_audio_duration
+from utils.helper import convert_time
 
-# Setup intents
-intents = discord.Intents.default()
-intents.message_content = True
-intents.voice_states = True
+logger = logging.getLogger(__name__)
 
 
 class MusicBot(commands.Cog):
-    def __init__(self, client: commands.Bot, config: ConfigInterface):
+    """Cog that exposes music playback commands to Discord.
+
+    All business logic is delegated to :class:`services.music_service.MusicService`.
+    """
+
+    def __init__(self, client: commands.Bot, config: ConfigInterface, music_service: MusicService) -> None:
         self.client: commands.Bot = client
         self.config: ConfigInterface = config
-        self.queue: dict[int, list[Track]] = {}  # Dictionary to store queues for different guilds
-        self.last_activity: dict[int, datetime] = {}  # Dictionary to store last activity time for each guild
-        self.last_channel: dict[
-            int | None, discord.interactions.InteractionChannel | None
-        ] = {}  # Dictionary to store last channel bot was used in
+        self.music_service: MusicService = music_service
+        self.last_channel: dict[int | None, discord.interactions.InteractionChannel | None] = {}
         self.check_inactivity.start()
-        self.song_length: int = 0
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
     async def _validate_interaction_context(self, interaction: discord.Interaction) -> bool:
+        """Verify the interaction is guild-scoped and the user is in a voice channel.
+
+        Args:
+            interaction: The incoming Discord interaction.
+
+        Returns:
+            ``True`` if the context is valid, ``False`` otherwise (followup sent).
+        """
         if not interaction.guild:
             await interaction.followup.send("This command can only be used in a server!")
             return False
@@ -42,43 +52,17 @@ class MusicBot(commands.Cog):
             return False
         return True
 
-    async def _validate_file(self, file: discord.Attachment | None, interaction: discord.Interaction) -> bool:
-        if file:
-            if not file.filename.lower().endswith(self.config.AUDIO_TYPES):
-                await interaction.followup.send(
-                    f"Invalid file type! supported formats: `{', '.join(self.config.AUDIO_TYPES)}`"
-                )
-                return False
-            if file.size > self.config.MAX_FILE_SIZE:
-                await interaction.followup.send(f"File greater than 10MB!: `{(file.size / 1000000):.2f}`")
-                return False
-            return True
-        return False
-
-    async def _extract_track_info(
-        self, interaction: discord.Interaction, search: str | None, file: discord.Attachment | None
-    ) -> Track | None:
-        if file:
-            duration = await get_audio_duration(file.url)
-            return Track(url=file.url, title=file.filename, thumbnail_url=None, duration=duration)
-
-        if not search:
-            await interaction.followup.send("You need to provide a search query or a file!")
-            return None
-
-        try:
-            extractor = get_extractor(search=search)
-            return await extractor.extract(search=search, config=self.config)
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred in in `/play` command: {e}")
-            return None
-
-    def _add_to_queue(self, guild_id: int, track: Track) -> None:
-        if guild_id not in self.queue:
-            self.queue[guild_id] = []
-        self.queue[guild_id].append(track)
-
     def _create_embed(self, interaction: discord.Interaction, track: Track, status: str) -> discord.Embed:
+        """Build an embed for a track status message.
+
+        Args:
+            interaction: The Discord interaction (used for user colour).
+            track: The track to display.
+            status: The status string shown as the embed title.
+
+        Returns:
+            A formatted :class:`discord.Embed`.
+        """
         embed = discord.Embed(
             title=status,
             description=f"**{track.title}** - `{convert_time(track.duration)}`",
@@ -89,77 +73,80 @@ class MusicBot(commands.Cog):
         return embed
 
     async def cog_unload(self) -> None:
+        """Cancel background tasks on cog unload."""
         self.check_inactivity.cancel()
+
+    # ------------------------------------------------------------------
+    # Background task – inactivity check
+    # ------------------------------------------------------------------
 
     @tasks.loop(seconds=60)
     async def check_inactivity(self) -> None:
-        """Check if bot has been inactive for 10 mins."""
-        current_time = datetime.now()
-        for guild in self.client.guilds:
-            voice_client = guild.voice_client
-            if voice_client is None:
-                continue
-
-            # Check for inactivity
-            last_active = self.last_activity.get(guild.id)
-            if last_active:
-                inactive_time = (current_time - last_active).total_seconds()
-                if inactive_time > self.config.INACTIVITY_TIMER + self.song_length:
-                    await voice_client.disconnect(force=True)
-                    if guild.id in self.queue:
-                        self.queue[guild.id].clear()
-                    self.last_activity.pop(guild.id, None)
-                    print(f"Disconnected from {guild.name} due to inactivity")
+        """Disconnect from guilds that have been inactive for the configured period."""
+        inactive_guilds = self.music_service.get_inactive_guilds()
+        for guild_id in inactive_guilds:
+            guild = self.client.get_guild(guild_id)
+            if guild and guild.voice_client:
+                await guild.voice_client.disconnect(force=True)
+                self.music_service.clear_queue(guild_id)
+                self.music_service.clear_activity(guild_id)
+                self.music_service.clear_song_length(guild_id)
+                logger.info("Disconnected from %s due to inactivity", guild.name, extra={"guild_id": guild_id})
 
     @check_inactivity.before_loop
     async def before_check_inactivity(self) -> None:
-        """Check if client is ready before calculating inactivity."""
+        """Wait until the bot is ready before the inactivity loop starts."""
         await self.client.wait_until_ready()
 
-    def update_activity(self, guild_id: int) -> None:
-        """
-        Update activity timestamp for various actions.
-
-        Args:
-            guild_id (int): id of the guild function is called from.
-        """
-        self.last_activity[guild_id] = datetime.now()
-
-    def get_queue(self, guild_id: int) -> list[Track]:
-        """Get the queue for a specific guild"""
-        if guild_id not in self.queue:
-            self.queue[guild_id] = []
-        return self.queue[guild_id]
+    # ------------------------------------------------------------------
+    # Slash commands
+    # ------------------------------------------------------------------
 
     @app_commands.command(name="play", description="Play a song from YouTube, SoundCloud, or upload an audio file")
     async def play(
         self, interaction: discord.Interaction, search: str | None = None, file: discord.Attachment | None = None
     ) -> None:
+        """Queue and play a track.
+
+        Args:
+            interaction: The Discord interaction.
+            search: A YouTube/SoundCloud search query or URL.
+            file: An optional audio attachment to play directly.
+        """
         await interaction.response.defer()
 
         if not await self._validate_interaction_context(interaction):
             return
 
-        if file and not await self._validate_file(file, interaction):
-            return
+        if file:
+            is_valid, error_msg = self.music_service.validate_file(file.filename, file.size)
+            if not is_valid:
+                await interaction.followup.send(error_msg or "Invalid file.")
+                return
 
-        # Update activity timestamp when play command is used
         if interaction.guild_id:
-            self.update_activity(interaction.guild_id)
+            self.music_service.update_activity(interaction.guild_id)
             self.last_channel[interaction.guild_id] = interaction.channel
 
-        # Connect to voice channel if not already connected
-        voice_channel = interaction.user.voice.channel
+        voice_channel = interaction.user.voice.channel  # type: ignore[union-attr]
+        assert voice_channel is not None  # guaranteed by _validate_interaction_context
         try:
-            voice_client = interaction.guild.voice_client
+            voice_client = interaction.guild.voice_client  # type: ignore[union-attr]
             if not voice_client:
                 voice_client = await voice_channel.connect()
-        except discord.errors.ClientException:
+        except discord.errors.ClientException as e:
+            logger.error("Error connecting to voice channel", exc_info=e)
             await interaction.followup.send("Error connecting to voice channel. Please try again.")
             return
 
-        track = await self._extract_track_info(interaction, search, file)
+        track, error_msg = await self.music_service.extract_track_info(
+            search=search,
+            file_url=file.url if file else None,
+            file_name=file.filename if file else None,
+        )
+
         if not track:
+            await interaction.followup.send(error_msg or "Unknown error extracting track")
             return
 
         if isinstance(voice_client, discord.VoiceClient) and not voice_client.is_playing():
@@ -168,46 +155,44 @@ class MusicBot(commands.Cog):
             status = "Added to Queue 📝"
 
         if isinstance(interaction.guild_id, int):
-            self._add_to_queue(interaction.guild_id, track)
+            self.music_service.add_to_queue(interaction.guild_id, track)
 
         embed = self._create_embed(interaction, track, status)
         await interaction.followup.send(embed=embed)
 
-        # TODO: Add default thumbnail file for attachments
-        # if file or is_discord_url:
-        #     thumbnail_file = discord.File("/root/dev/discord-bot/assets/music_file.png", filename="music_file.png")
-        #     embed.set_image(url="attachment://music_file.png")
-        #     await interaction.followup.send(file=thumbnail_file, embed=embed)
-        # else:
-
-        # Play if not already playing
+        # Play immediately if nothing is currently playing
         if isinstance(voice_client, discord.VoiceClient) and not voice_client.is_playing():
             await self.play_next(interaction, send_message=False)
 
-        # Add song time to timeout length
-        if track.duration is not None:
-            self.song_length += track.duration
+        # Extend the inactivity grace period by this song's duration
+        if isinstance(interaction.guild_id, int) and track.duration is not None:
+            self.music_service.add_song_length(interaction.guild_id, track.duration)
 
-    async def play_next(self, interaction: discord.Interaction, send_message: bool = True) -> None:
-        """
-        Method called by `play` command to initialize music play.
+    async def play_next(
+        self,
+        interaction: discord.Interaction,
+        send_message: bool = True,
+        _retries: int = 0,
+    ) -> None:
+        """Advance to the next track in the queue.
 
         Args:
-            interaction (discord.Interaction): A Discord interaction.
-            send_message (bool, optional): Whether to send embedded message or not. Defaults to True.
+            interaction: The Discord interaction that initiated playback.
+            send_message: Whether to post a "Now Playing" embed. Defaults to ``True``.
+            _retries: Internal retry counter — prevents infinite recursion on
+                persistent playback errors. Max 3 retries before giving up.
         """
-        if not interaction.guild or not type(interaction.guild_id) == int:
+        _MAX_RETRIES = 3
+
+        if not interaction.guild or not isinstance(interaction.guild_id, int):
             return
 
-        self.update_activity(interaction.guild_id)
+        self.music_service.update_activity(interaction.guild_id)
 
-        guild_queue = self.get_queue(interaction.guild_id)
-        if (
-            not guild_queue
-            and interaction.channel
-            and not isinstance(interaction.channel, (ForumChannel, CategoryChannel))
-        ):
-            await interaction.channel.send("Queue is empty! 🕳️")
+        guild_queue = self.music_service.get_queue(interaction.guild_id)
+        if not guild_queue:
+            if interaction.channel and not isinstance(interaction.channel, (ForumChannel, CategoryChannel)):
+                await interaction.channel.send("Queue is empty! 🕳️")
             return
 
         voice_client = interaction.guild.voice_client
@@ -215,69 +200,71 @@ class MusicBot(commands.Cog):
             return
 
         track = guild_queue.pop(0)
-        self.update_activity(interaction.guild_id)  # Update activity timestamp
+        self.music_service.update_activity(interaction.guild_id)
 
-        # Choose FFMPEG options based on source type
-        if isinstance(track.url, discord.Attachment) or "cdn.discordapp.com" in track.url:
-            # Use high quality settings for Discord uploads and CDN
-            ffmpeg_opts = self.config.LOCAL_FFMPEG_OPTIONS
-        else:
-            # Use bandwidth-optimized settings for YouTube/Soundcloud streams
-            ffmpeg_opts = self.config.STREAM_FFMPEG_OPTIONS
+        ffmpeg_opts = self.music_service.get_ffmpeg_options(track)
 
         try:
-            source = await discord.FFmpegOpusAudio.from_probe(track.url, **ffmpeg_opts)  # type: ignore
+            source = await discord.FFmpegOpusAudio.from_probe(track.url, **ffmpeg_opts)  # type: ignore[arg-type]
 
-            def after_playing(error: str):
+            def after_playing(error: str | Exception | None) -> None:
                 if error:
-                    print(f"Error in playback: {error}")
-                asyncio.run_coroutine_threadsafe(self.play_next(interaction, send_message=True), self.client.loop)
+                    logger.error(
+                        "Error in playback",
+                        exc_info=error if isinstance(error, Exception) else Exception(error),
+                    )
+                asyncio.run_coroutine_threadsafe(
+                    self.play_next(interaction, send_message=True),
+                    self.client.loop,
+                )
 
-            voice_client.play(source, after=after_playing)  # type: ignore
+            if isinstance(voice_client, discord.VoiceClient):
+                voice_client.play(source, after=after_playing)
 
-            if (
-                send_message
-                and interaction.channel
-                and not isinstance(interaction.channel, (ForumChannel, CategoryChannel))
+            if send_message and interaction.channel and not isinstance(
+                interaction.channel, (ForumChannel, CategoryChannel)
             ):
                 embed = self._create_embed(interaction, track, status="Now Playing 🎶")
                 await interaction.channel.send(embed=embed)
 
         except Exception as e:
+            logger.exception("Error playing %s", track.title)
             if interaction.channel and not isinstance(interaction.channel, (ForumChannel, CategoryChannel)):
                 await interaction.channel.send(f"Error playing {track.title}: {e}")
-            await self.play_next(interaction)
+
+            if _retries < _MAX_RETRIES:
+                logger.warning("Retrying next track (attempt %d/%d)", _retries + 1, _MAX_RETRIES)
+                await self.play_next(interaction, send_message=True, _retries=_retries + 1)
+            else:
+                logger.error("Max retries reached — stopping playback.")
 
     @app_commands.command(name="skip", description="Skip the current song")
     async def skip(self, interaction: discord.Interaction) -> None:
-        """
-        Command to skip current song or stop if no queue.
+        """Skip the currently playing track.
 
         Args:
-            interaction (discord.Interaction): A Discord interaction.
+            interaction: The Discord interaction.
         """
         if not interaction.guild or not interaction.guild_id:
             await interaction.response.send_message("This command can only be used in a server!")
             return
 
-        # Update activity timestamp when skip command is used
-        self.update_activity(interaction.guild_id)
+        self.music_service.update_activity(interaction.guild_id)
         self.last_channel[interaction.guild_id] = interaction.channel
 
         voice_client = interaction.guild.voice_client
-        if voice_client and voice_client.is_playing():  # type: ignore
-            voice_client.stop()  # type: ignore
+        if isinstance(voice_client, discord.VoiceClient) and voice_client.is_playing():
+            voice_client.stop()
             await interaction.response.send_message("⏭️ Skipped!")
         else:
             await interaction.response.send_message("Nothing is playing!")
 
     @app_commands.command(name="leave", description="Disconnect the bot from voice channel")
     async def leave(self, interaction: discord.Interaction) -> None:
-        """
-        Command to disconnect bot from a voice channel if in one.
+        """Disconnect the bot from the current voice channel and clear the queue.
 
         Args:
-            interaction (discord.Interaction): A Discord interaction.
+            interaction: The Discord interaction.
         """
         if not interaction.guild:
             await interaction.response.send_message("This command can only be used in a server!")
@@ -288,53 +275,70 @@ class MusicBot(commands.Cog):
         voice_client = interaction.guild.voice_client
         if voice_client:
             await voice_client.disconnect(force=True)
-            if interaction.guild_id in self.queue:
-                self.queue[interaction.guild_id].clear()
+            if interaction.guild_id is not None:
+                self.music_service.clear_queue(interaction.guild_id)
             await interaction.response.send_message("👋 Disconnected from voice channel!")
         else:
             await interaction.response.send_message("I'm not in a voice channel!")
+
+    # ------------------------------------------------------------------
+    # Event listeners
+    # ------------------------------------------------------------------
 
     @commands.Cog.listener()
     async def on_voice_state_update(
         self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
     ) -> None:
-        """
-        Event listener for voice state updates.
+        """Disconnect when the bot is left alone in a voice channel.
 
         Args:
-            member (discord.Member): A Discord member to a Guild.
-            before (discord.VoiceState): A Discord user's voice state before.
-            after (discord.VoiceState):  A Discord user's voice state after.
+            member: The guild member whose voice state changed.
+            before: The member's voice state before the change.
+            after: The member's voice state after the change.
         """
         if member.guild.voice_client is None:
             return
 
-        # Update activity when someone joins or moves in the voice channel
-        if after.channel and after.channel.id == member.guild.voice_client.channel.id:  # type: ignore
-            self.update_activity(member.guild.id)
+        # Refresh activity when a user joins the bot's channel
+        if after.channel and after.channel.id == member.guild.voice_client.channel.id:  # type: ignore[union-attr,attr-defined]
+            self.music_service.update_activity(member.guild.id)
 
-        # Check if the bot is alone in the voice channel
+        # Fire-and-forget: check if bot is alone after a short grace period
         voice_client = member.guild.voice_client
-        if voice_client and voice_client.is_connected() and len(voice_client.channel.members) <= 1:  # type: ignore
-            await asyncio.sleep(5)  # Wait 5 seconds before checking again
+        if (
+            isinstance(voice_client, discord.VoiceClient)
+            and voice_client.is_connected()
+            and len(voice_client.channel.members) <= 1  # type: ignore[union-attr]
+        ):
+            asyncio.create_task(self._handle_alone_in_channel(member.guild, voice_client))
 
-            # Check again after delay to make sure bot is still alone
-            if voice_client.is_connected() and len(voice_client.channel.members) <= 1:  # type: ignore
-                print(f"Disconnected from {member.guild.name} - bot was left alone")
+    async def _handle_alone_in_channel(
+        self, guild: discord.Guild, voice_client: discord.VoiceClient
+    ) -> None:
+        """Disconnect and notify after a 5-second grace period if still alone.
 
-                # Try to send message to the last channel where a command was used
-                try:
-                    # Get the last interaction's channel
-                    last_text_channel = self.last_channel.get(member.guild.id)
+        Args:
+            guild: The guild the bot is connected to.
+            voice_client: The active voice client for the guild.
+        """
+        await asyncio.sleep(5)
 
-                    if last_text_channel and not isinstance(last_text_channel, (ForumChannel, CategoryChannel)):
-                        await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
-                except discord.HTTPException:
-                    # If sending message fails, just continue with disconnection
-                    pass
+        # Re-check after the grace period — a user may have rejoined
+        if not voice_client.is_connected() or len(voice_client.channel.members) > 1:  # type: ignore[union-attr]  # discord.py stubs gap
+            return
 
-                # Perform cleanup
-                await voice_client.disconnect(force=True)
-                if member.guild.id in self.queue:
-                    self.queue[member.guild.id].clear()
-                self.last_activity.pop(member.guild.id, None)
+        logger.info(
+            "Disconnecting from %s — bot was left alone", guild.name, extra={"guild_id": guild.id}
+        )
+
+        last_text_channel = self.last_channel.get(guild.id)
+        if last_text_channel and not isinstance(last_text_channel, (ForumChannel, CategoryChannel)):
+            try:
+                await last_text_channel.send("Disconnecting because I was left alone in the voice channel! 👋")
+            except discord.HTTPException:
+                pass  # Non-fatal — continue with disconnection
+
+        await voice_client.disconnect(force=True)
+        self.music_service.clear_queue(guild.id)
+        self.music_service.clear_activity(guild.id)
+        self.music_service.clear_song_length(guild.id)
