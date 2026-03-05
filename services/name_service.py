@@ -6,6 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 class NameService:
+    """Generate random nicknames using a list of first names and towns."""
+
     def __init__(self):
         try:
             self.names = [name.strip() for name in Path("firstnames.txt").read_text("utf-8").splitlines()]
@@ -16,5 +18,9 @@ class NameService:
             self.towns = ["Nowhere"]
 
     def generate_random_nickname(self) -> str:
-        """Generate a random nickname using loaded names and towns."""
+        """Generate a random nickname using loaded names and towns.
+
+        Returns:
+            str: A random nickname.
+        """
         return f"{choice(self.names)} from {choice(self.towns)}"

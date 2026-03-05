@@ -32,10 +32,10 @@ class MusicService:
         """Return (and lazily initialise) the track queue for a guild.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
+            guild_id (int): The Discord guild ID.
 
         Returns:
-            The mutable track queue for the guild.
+            list[Track]: The mutable track queue for the guild.
         """
         if guild_id not in self.queue:
             self.queue[guild_id] = []
@@ -45,8 +45,8 @@ class MusicService:
         """Append a track to the guild's queue.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
-            track: The track to add.
+            guild_id (int): The Discord guild ID.
+            track (Track): The track to add.
         """
         self.get_queue(guild_id).append(track)
 
@@ -54,7 +54,7 @@ class MusicService:
         """Clear all queued tracks for a guild.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
+            guild_id (int): The Discord guild ID.
         """
         if guild_id in self.queue:
             self.queue[guild_id].clear()
@@ -67,7 +67,7 @@ class MusicService:
         """Record the current UTC time as the latest activity for a guild.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
+            guild_id (int): The Discord guild ID.
         """
         self.last_activity[guild_id] = datetime.now(timezone.utc)
 
@@ -75,7 +75,7 @@ class MusicService:
         """Remove the activity timestamp for a guild.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
+            guild_id (int): The Discord guild ID.
         """
         self.last_activity.pop(guild_id, None)
 
@@ -83,7 +83,7 @@ class MusicService:
         """Return guild IDs whose last activity exceeds the inactivity threshold.
 
         Returns:
-            A list of guild IDs that should be disconnected.
+            list[int]: A list of guild IDs that should be disconnected.
         """
         now = datetime.now(timezone.utc)
         return [
@@ -100,8 +100,8 @@ class MusicService:
         """Accumulate a track's duration into the guild's inactivity grace period.
 
         Args:
-            guild_id: The Discord guild snowflake ID.
-            duration: Track duration in seconds.
+            guild_id (int): The Discord guild ID.
+            duration (int): Track duration in seconds.
         """
         self._song_length[guild_id] = self._song_length.get(guild_id, 0) + duration
 
@@ -109,7 +109,7 @@ class MusicService:
         """Reset the accumulated song length for a guild (e.g. after disconnect).
 
         Args:
-            guild_id: The Discord guild snowflake ID.
+            guild_id (int): The Discord guild ID.
         """
         self._song_length.pop(guild_id, None)
 
@@ -121,11 +121,11 @@ class MusicService:
         """Validate an uploaded audio file against configured limits.
 
         Args:
-            file_name: The original filename of the attachment.
-            file_size: The file size in bytes.
+            file_name (str): The original filename of the attachment.
+            file_size (int): The file size in bytes.
 
         Returns:
-            A ``(valid, error_message)`` tuple. ``error_message`` is ``None``
+            tuple[bool,str|None]: A ``(valid, error_message)`` tuple. ``error_message`` is ``None``
             when the file is valid.
         """
         if not file_name.lower().endswith(self.config.AUDIO_TYPES):
@@ -140,12 +140,12 @@ class MusicService:
         """Extract track metadata from a search string or a Discord CDN URL.
 
         Args:
-            search: A search query or direct URL.
-            file_url: CDN URL of an uploaded audio file.
-            file_name: Original filename of the uploaded audio file.
+            search (str|None): A search query or direct URL.
+            file_url (str|None): CDN URL of an uploaded audio file.
+            file_name (str|None): Original filename of the uploaded audio file.
 
         Returns:
-            A ``(track, error_message)`` tuple. On success ``error_message`` is
+            tuple[Track|None,str|None]: A ``(track, error_message)`` tuple. On success ``error_message`` is
             ``None``; on failure ``track`` is ``None``.
         """
         if file_url and file_name:
@@ -167,10 +167,10 @@ class MusicService:
         """Return the appropriate FFmpeg options dict for a given track URL.
 
         Args:
-            track: The track whose URL determines streaming vs local options.
+            track (Track): The track whose URL determines streaming vs local options.
 
         Returns:
-            A FFmpeg options dictionary suitable for :class:`discord.FFmpegOpusAudio`.
+            dict[str,str]: A FFmpeg options dictionary suitable for :class:`discord.FFmpegOpusAudio`.
         """
         if "cdn.discordapp.com" in track.url:
             return self.config.LOCAL_FFMPEG_OPTIONS
