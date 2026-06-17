@@ -6,7 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from services.name_service import NameService
-from utils.config_interface import ConfigInterface
+from utils.config import BotConfig
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 class NameChanger(commands.Cog):
     """Cog for nickname management and channel cleanup commands."""
 
-    def __init__(self, client: commands.Bot, config: ConfigInterface, name_service: NameService) -> None:
+    def __init__(self, client: commands.Bot, config: BotConfig, name_service: NameService) -> None:
         self.client: commands.Bot = client
-        self.config: ConfigInterface = config
+        self.config: BotConfig = config
         self.name_service = name_service
 
     @app_commands.command(name="name", description="Changes username to randomized one.")

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from extractors.extractor_factory import get_extractor
 from schemas.track import Track
-from utils.config_interface import ConfigInterface
+from utils.config import BotConfig
 from utils.helper import get_audio_duration
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class MusicService:
     Does not depend on Discord primitives.
     """
 
-    def __init__(self, config: ConfigInterface) -> None:
+    def __init__(self, config: BotConfig) -> None:
         self.config = config
         self.queue: dict[int, list[Track]] = {}
         self.last_activity: dict[int, datetime] = {}

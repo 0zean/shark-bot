@@ -3,14 +3,14 @@ import asyncio
 import yt_dlp
 
 from schemas.track import Track
-from utils.config_interface import ConfigInterface
+from utils.config import BotConfig
 from utils.helper import clean_youtube_url
 
 
 class YouTubeExtractor:
     """Extract a :class:`Track` from a YouTube URL."""
 
-    async def extract(self, search: str, config: ConfigInterface) -> Track | None:
+    async def extract(self, search: str, config: BotConfig) -> Track | None:
         """
         Build a Track from a YouTube URL.
 

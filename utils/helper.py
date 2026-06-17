@@ -29,14 +29,12 @@ def load_config() -> AudioConfig:
     with open(config_path, encoding="utf-8") as f:
         config = json.load(f)
 
-    conf = {
-        "local_ffmpeg_options": config["ffmpeg"]["local"],
-        "stream_ffmpeg_options": config["ffmpeg"]["stream"],
-        "yt_dlp_options": config["ydl"],
-        "audio_types": tuple(config["audio_types"]),
-    }
-
-    return AudioConfig(**conf)
+    return AudioConfig(
+        local_ffmpeg_options=config["ffmpeg"]["local"],
+        stream_ffmpeg_options=config["ffmpeg"]["stream"],
+        yt_dlp_options=config["ydl"],
+        audio_types=tuple(config["audio_types"]),
+    )
 
 
 def get_file_extension(url: str) -> tuple[str, str]:
@@ -73,11 +71,7 @@ def convert_time(seconds: int | None) -> str:
     return f"{minute:02d}:{sec:02d}"
 
 
-async def get_audio_duration(
-    url: str,
-    *,
-    session: aiohttp.ClientSession | None = None,
-) -> int | None:
+async def get_audio_duration(url: str) -> int | None:
     """Fetch and return the duration of a remote audio file in seconds.
 
     Args:
@@ -89,26 +83,18 @@ async def get_audio_duration(
     Returns:
         int|None: Rounded duration in seconds, or ``None`` if the file cannot be read.
     """
-
-    async def _fetch(client: aiohttp.ClientSession) -> int | None:
-        try:
-            async with client.get(url) as response:
+    try:
+        async with aiohttp.ClientSession(timeout=_DEFAULT_TIMEOUT) as session:
+            async with session.get(url) as response:
                 if response.status != 200:
                     logger.warning("Failed to download audio file — HTTP %s", response.status, extra={"url": url})
                     return None
                 audio_bytes = io.BytesIO(await response.read())
                 with sf.SoundFile(audio_bytes) as audio_file:
-                    duration = len(audio_file) / audio_file.samplerate
-                return round(duration)
-        except aiohttp.ClientError as e:
-            logger.error("HTTP error in get_audio_duration", exc_info=e, extra={"url": url})
-            return None
-
-    if session is not None:
-        return await _fetch(session)
-
-    async with aiohttp.ClientSession(timeout=_DEFAULT_TIMEOUT) as new_session:
-        return await _fetch(new_session)
+                    return round(len(audio_file) / audio_file.samplerate)
+    except aiohttp.ClientError as e:
+        logger.error("HTTP error in get_audio_duration", exc_info=e, extra={"url": url})
+        return None
 
 
 def get_user_voice_channel(interaction: discord.Interaction) -> VocalGuildChannel | None:

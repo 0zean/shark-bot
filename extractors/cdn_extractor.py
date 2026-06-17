@@ -1,12 +1,12 @@
 from schemas.track import Track
-from utils.config_interface import ConfigInterface
+from utils.config import BotConfig
 from utils.helper import get_audio_duration, get_file_extension
 
 
 class CdnExtractor:
     """Extract a :class:`Track` from a Discord CDN audio attachment URL."""
 
-    async def extract(self, search: str, config: ConfigInterface) -> Track | None:
+    async def extract(self, search: str, config: BotConfig) -> Track | None:
         """Build a Track from a Discord CDN audio URL.
 
         Args:

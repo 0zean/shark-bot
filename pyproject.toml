@@ -5,29 +5,27 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11.10"
 dependencies = [
-    "aiohttp>=3.13.3",
+    "aiohttp>=3.13.4",
     "asyncio>=4.0.0",
-    "dave-py>=0.1.1",
-    "deno>=2.7.3",
+    "dave-py>=0.1.2",
+    "deno>=2.7.9",
     "discord-py[voice]>=2.7.1",
     "pydantic>=2.12.5",
     "python-dotenv>=1.2.2",
     "soundfile>=0.13.1",
     "uvloop>=0.22.1",
-    "yt-dlp-ejs>=0.5.0",
-    "yt-dlp[default]>=2026.3.3",
+    "yt-dlp-ejs>=0.8.0",
+    "yt-dlp[default]>=2026.3.17",
 ]
 
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
-    "ruff>=0.15.4",
+    "ruff>=0.15.8"
 ]
 
 [tool.ruff]
 exclude = [".venv"]
 respect-gitignore = true
 line-length = 120
-lint.ignore = [
-    "F403"
-]
+lint.ignore = ["F403"]

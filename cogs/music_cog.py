@@ -8,7 +8,7 @@ from discord.ext import commands, tasks
 
 from schemas.track import Track
 from services.music_service import MusicService
-from utils.config_interface import ConfigInterface
+from utils.config import BotConfig
 from utils.helper import convert_time
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ class MusicBot(commands.Cog):
     All business logic is delegated to :class:`services.music_service.MusicService`.
     """
 
-    def __init__(self, client: commands.Bot, config: ConfigInterface, music_service: MusicService) -> None:
+    def __init__(self, client: commands.Bot, config: BotConfig, music_service: MusicService) -> None:
         self.client: commands.Bot = client
-        self.config: ConfigInterface = config
+        self.config: BotConfig = config
         self.music_service: MusicService = music_service
         self.last_channel: dict[int | None, discord.interactions.InteractionChannel | None] = {}
         self.check_inactivity.start()
@@ -129,7 +129,6 @@ class MusicBot(commands.Cog):
             self.last_channel[interaction.guild_id] = interaction.channel
 
         voice_channel = interaction.user.voice.channel  # type: ignore[union-attr]
-        assert voice_channel is not None  # guaranteed by _validate_interaction_context
         try:
             voice_client = interaction.guild.voice_client  # type: ignore[union-attr]
             if not voice_client:

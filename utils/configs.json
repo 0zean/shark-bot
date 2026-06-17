@@ -18,8 +18,8 @@
         ".mp3",
         ".mp4",
         ".m4a",
-        "wav",
-        "flac",
+        ".wav",
+        ".flac",
         ".aac",
         ".wma",
         ".opus"

@@ -13,7 +13,8 @@ from cogs.music_cog import MusicBot  # noqa: E402
 from cogs.name_cog import NameChanger  # noqa: E402
 from services.music_service import MusicService  # noqa: E402
 from services.name_service import NameService  # noqa: E402
-from utils.config import config_factory  # noqa: E402
+from utils.config import BotConfig  # noqa: E402
+from utils.helper import load_config
 
 # Configure root logger
 logging.basicConfig(
@@ -27,7 +28,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 
-config = config_factory()
+config = BotConfig(load_config())
 
 
 class BotClient(commands.Bot):
