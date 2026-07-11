@@ -1,18 +1,25 @@
 {
     "ffmpeg": {
         "local": {
-            "before_options": "-analyzeduration 0 -loglevel 0",
-            "options": "-vn -b:a 192k -bufsize 1024k -fflags nobuffer+fastseek"
+            "before_options": "-nobenchmark -loglevel error -hide_banner -nostats",
+            "options": "-vn -fflags nobuffer+fastseek"
         },
         "stream": {
-            "before_options": "",
-            "options": "-vn -b:a 128k -bufsize 512k"
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -analyzeduration 0 -loglevel error",
+            "options": "-vn -fflags nobuffer+fastseek"
         }
     },
     "ydl": {
         "format": "bestaudio[ext=mp3]/bestaudio/best",
         "noplaylist": true,
-        "cookiefile": "cookies.txt"
+        "nocheckcertificate": true,
+        "source_address": "0.0.0.0",
+        "cookiefile": "cookies.txt",
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5"
+        }
     },
     "audio_types": [
         ".mp3",

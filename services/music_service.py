@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timezone
 
 from extractors.extractor_factory import get_extractor
@@ -172,6 +173,6 @@ class MusicService:
         Returns:
             dict[str,str]: A FFmpeg options dictionary suitable for :class:`discord.FFmpegOpusAudio`.
         """
-        if "cdn.discordapp.com" in track.url:
+        if "cdn.discordapp.com" in track.url or os.path.isfile(track.url):
             return self.config.LOCAL_FFMPEG_OPTIONS
         return self.config.STREAM_FFMPEG_OPTIONS

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import discord
 from discord import app_commands
@@ -204,7 +205,7 @@ class MusicBot(commands.Cog):
         ffmpeg_opts = self.music_service.get_ffmpeg_options(track)
 
         try:
-            source = await discord.FFmpegOpusAudio.from_probe(track.url, **ffmpeg_opts)  # type: ignore[arg-type]
+            source = discord.FFmpegOpusAudio(track.url, **ffmpeg_opts)
 
             def after_playing(error: str | Exception | None) -> None:
                 if error:
@@ -212,6 +213,12 @@ class MusicBot(commands.Cog):
                         "Error in playback",
                         exc_info=error if isinstance(error, Exception) else Exception(error),
                     )
+                # Clean up downloaded temp files
+                if os.path.isfile(track.url):
+                    try:
+                        os.remove(track.url)
+                    except OSError:
+                        logger.warning("Failed to remove temp file: %s", track.url)
                 asyncio.run_coroutine_threadsafe(
                     self.play_next(interaction, send_message=True),
                     self.client.loop,
